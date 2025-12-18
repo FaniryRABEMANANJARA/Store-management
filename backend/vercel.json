@@ -1,5 +1,5 @@
 {
-  "buildCommand": "prisma generate && prisma migrate deploy && next build",
+  "buildCommand": "cd backend && yarn build:vercel",
   "installCommand": "yarn install",
   "framework": "nextjs",
   "regions": ["cdg1"]
