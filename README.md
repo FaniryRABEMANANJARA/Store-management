@@ -48,9 +48,20 @@ Le projet repose sur une architecture **full stack scalable et serverless**, ada
 
 ```
 root/
-├── frontend/        # Application Vue 3
-├── backend/         # Next.js (API serverless)
-├── prisma/          # Schéma Prisma
+├── frontend/              # Application Vue 3
+│   ├── src/
+│   │   ├── views/         # Pages Vue
+│   │   ├── api/           # Client API
+│   │   └── main.ts
+│   └── package.json
+├── backend/               # Next.js (API serverless)
+│   ├── app/
+│   │   └── api/           # API Routes
+│   ├── lib/               # Utilitaires (Prisma client)
+│   ├── prisma/
+│   │   └── schema.prisma  # Schéma Prisma
+│   └── package.json
+├── package.json           # Workspace root
 ├── README.md
 └── .env
 ```
@@ -89,28 +100,50 @@ cd stock-management
 ### 2️⃣ Installer les dépendances
 
 ```bash
-npm install
+yarn install
 ```
 
-### 3️⃣ Configuration des variables d’environnement
+### 3️⃣ Configuration des variables d'environnement
 
-Créer un fichier `.env` :
+Créer un fichier `.env` à la racine du projet :
 
 ```env
 DATABASE_URL=postgresql://user:password@host:port/database
+NEXT_PUBLIC_API_URL=http://localhost:3000/api
+VITE_API_URL=http://localhost:3000/api
 ```
+
+**📚 Documentation détaillée :**
+- Voir `CREATE_ENV.md` pour les instructions complètes de configuration
+- Voir `ENV_SETUP.md` pour la configuration locale et Vercel
+- Voir `VERCEL_SETUP.md` pour le guide de configuration Vercel avec Prisma Postgres (recommandé)
+- Voir `VERCEL.md` pour le guide de déploiement général sur Vercel
 
 ### 4️⃣ Initialiser la base de données
 
 ```bash
-npx prisma migrate dev
-npx prisma generate
+# Générer le client Prisma
+yarn prisma:generate
+
+# Créer et appliquer les migrations
+yarn prisma:migrate
 ```
 
 ### 5️⃣ Lancer le projet
 
 ```bash
-npm run dev
+# Lancer le backend (port 3000) et le frontend (port 5173) simultanément
+yarn dev
+```
+
+**Ou séparément :**
+
+```bash
+# Backend uniquement
+yarn workspace backend dev
+
+# Frontend uniquement
+yarn workspace frontend dev
 ```
 
 ---

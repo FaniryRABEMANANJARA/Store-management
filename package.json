@@ -1,0 +1,24 @@
+{
+  "name": "store-management",
+  "version": "1.0.0",
+  "description": "Système de gestion de stock avec calcul automatique du bénéfice et de la perte",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "concurrently \"yarn workspace backend dev\" \"yarn workspace frontend dev\"",
+    "build": "yarn workspace backend build && yarn workspace frontend build",
+    "prisma:generate": "yarn workspace backend prisma:generate",
+    "prisma:migrate": "yarn workspace backend prisma:migrate",
+    "prisma:studio": "yarn workspace backend prisma:studio"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
+
