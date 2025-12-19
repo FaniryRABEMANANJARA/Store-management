@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { getPrisma } from '@/lib/prisma'
 
 // GET /api/products/[id] - Récupérer un produit par ID
 export async function GET(
@@ -7,9 +7,12 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    const prisma = getPrisma()
     const product = await prisma.product.findUnique({
       where: { id: params.id },
       include: {
+        category: true,
+        subCategory: true,
         purchases: {
           orderBy: { purchaseDate: 'desc' },
         },
@@ -42,14 +45,46 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
+    const prisma = getPrisma()
     const body = await request.json()
-    const { name, description } = body
+    const { 
+      name, 
+      description, 
+      categoryId, 
+      subCategoryId,
+      color,
+      storage,
+      model,
+      battery,
+      simType,
+      condition,
+      ram,
+      processor,
+      screenSize,
+      graphics
+    } = body
 
     const product = await prisma.product.update({
       where: { id: params.id },
       data: {
         name,
-        description,
+        description: description || null,
+        categoryId: categoryId || undefined,
+        subCategoryId: subCategoryId || null,
+        color: color || null,
+        storage: storage || null,
+        model: model || null,
+        battery: battery || null,
+        simType: simType || null,
+        condition: condition || null,
+        ram: ram || null,
+        processor: processor || null,
+        screenSize: screenSize || null,
+        graphics: graphics || null,
+      },
+      include: {
+        category: true,
+        subCategory: true,
       },
     })
 
@@ -69,6 +104,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    const prisma = getPrisma()
     await prisma.product.delete({
       where: { id: params.id },
     })

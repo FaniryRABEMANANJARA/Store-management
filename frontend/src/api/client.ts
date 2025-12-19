@@ -1,6 +1,9 @@
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
+// En développement, utiliser le proxy Vite (/api)
+// En production, utiliser l'URL complète de l'API
+// Le proxy Vite redirige automatiquement vers le backend (port 3000 ou autre)
+const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '/api' : 'http://localhost:3000/api')
 
 export const apiClient = axios.create({
   baseURL: API_URL,
@@ -9,13 +12,71 @@ export const apiClient = axios.create({
   },
 })
 
+// Intercepteur pour gérer les erreurs d'authentification
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Token expiré ou invalide - nettoyer les deux types de stockage
+      localStorage.removeItem('token')
+      sessionStorage.removeItem('token')
+      delete apiClient.defaults.headers.common['Authorization']
+      // Rediriger vers login si on n'est pas déjà sur la page de login
+      if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+        window.location.href = '/login'
+      }
+    }
+    return Promise.reject(error)
+  }
+)
+
 // Types
-export interface Product {
+export interface Category {
   id: string
   name: string
   description?: string
   createdAt: string
   updatedAt: string
+  subCategories?: SubCategory[]
+  _count?: {
+    products: number
+  }
+}
+
+export interface SubCategory {
+  id: string
+  name: string
+  description?: string
+  categoryId: string
+  createdAt: string
+  updatedAt: string
+  category?: Category
+  _count?: {
+    products: number
+  }
+}
+
+export interface Product {
+  id: string
+  name: string
+  description?: string
+  categoryId: string
+  subCategoryId?: string
+  color?: string
+  storage?: string
+  model?: string
+  battery?: string
+  simType?: string // "dual_sim", "esim", "dual_sim_esim"
+  condition?: string // "new", "refurbished", "used", "like_new"
+  // Attributs spécifiques aux ordinateurs
+  ram?: string
+  processor?: string
+  screenSize?: string
+  graphics?: string
+  createdAt: string
+  updatedAt: string
+  category?: Category
+  subCategory?: SubCategory
 }
 
 export interface Purchase {
@@ -46,6 +107,20 @@ export interface ExchangeRate {
   isActive: boolean
 }
 
+export interface Order {
+  id: string
+  productId: string
+  quantity: number
+  priceRMB: number
+  exchangeRate: number
+  totalCostMGA: number
+  status: 'pending' | 'processing' | 'completed' | 'cancelled'
+  orderDate: string
+  createdAt: string
+  updatedAt: string
+  product?: Product
+}
+
 export interface Profit {
   productId: string
   productName: string
@@ -58,13 +133,56 @@ export interface Profit {
 }
 
 // API functions
+export const categoriesApi = {
+  getAll: () => apiClient.get<Category[]>('/categories'),
+  create: (data: { name: string; description?: string }) =>
+    apiClient.post<Category>('/categories', data),
+}
+
+export const subCategoriesApi = {
+  getAll: (categoryId?: string) => {
+    const params = categoryId ? { params: { categoryId } } : {}
+    return apiClient.get<SubCategory[]>('/subcategories', params)
+  },
+  create: (data: { name: string; description?: string; categoryId: string }) =>
+    apiClient.post<SubCategory>('/subcategories', data),
+}
+
 export const productsApi = {
   getAll: () => apiClient.get<Product[]>('/products'),
   getById: (id: string) => apiClient.get<Product>(`/products/${id}`),
-  create: (data: { name: string; description?: string }) =>
-    apiClient.post<Product>('/products', data),
-  update: (id: string, data: { name: string; description?: string }) =>
-    apiClient.put<Product>(`/products/${id}`, data),
+  create: (data: {
+    name: string
+    description?: string
+    categoryId: string
+    subCategoryId?: string
+    color?: string
+    storage?: string
+    model?: string
+    battery?: string
+    simType?: string
+    condition?: string
+    ram?: string
+    processor?: string
+    screenSize?: string
+    graphics?: string
+  }) => apiClient.post<Product>('/products', data),
+  update: (id: string, data: {
+    name: string
+    description?: string
+    categoryId?: string
+    subCategoryId?: string
+    color?: string
+    storage?: string
+    model?: string
+    battery?: string
+    simType?: string
+    condition?: string
+    ram?: string
+    processor?: string
+    screenSize?: string
+    graphics?: string
+  }) => apiClient.put<Product>(`/products/${id}`, data),
   delete: (id: string) => apiClient.delete(`/products/${id}`),
   getProfit: (id: string) => apiClient.get<Profit>(`/products/${id}/profit`),
 }
@@ -94,6 +212,20 @@ export const exchangeRatesApi = {
   getAll: () => apiClient.get<ExchangeRate[]>('/exchange-rates'),
   create: (data: { rate: number; date?: string; isActive?: boolean }) =>
     apiClient.post<ExchangeRate>('/exchange-rates', data),
-  getActive: () => apiClient.get<ExchangeRate>('/exchange-rates/active'),
+  getActive: () => apiClient.get<ExchangeRate | null>('/exchange-rates/active'),
+}
+
+export const ordersApi = {
+  getAll: () => apiClient.get<Order[]>('/orders'),
+  getById: (id: string) => apiClient.get<Order>(`/orders/${id}`),
+  create: (data: {
+    productId: string
+    quantity: number
+    priceRMB: number
+    exchangeRate: number
+    orderDate?: string
+  }) => apiClient.post<Order>('/orders', data),
+  update: (id: string, data: Partial<Order>) => apiClient.put<Order>(`/orders/${id}`, data),
+  delete: (id: string) => apiClient.delete(`/orders/${id}`),
 }
 

@@ -10,6 +10,7 @@ Le projet repose sur une architecture **full stack scalable et serverless**, ada
 
 ## 🚀 Fonctionnalités
 
+* **Authentification sécurisée** (Login / Register) avec JWT
 * Gestion des produits et du stock
 * Enregistrement des achats en **RMB**
 * Enregistrement des ventes en **MGA**
@@ -49,15 +50,23 @@ Le projet repose sur une architecture **full stack scalable et serverless**, ada
 ```
 root/
 ├── frontend/              # Application Vue 3
+│   ├── public/            # Fichiers statiques (favicon, images publiques)
+│   │   └── favicon.ico
 │   ├── src/
+│   │   ├── assets/        # Assets traités par Vite
+│   │   │   ├── images/    # Images (logos, photos)
+│   │   │   ├── icons/     # Icônes SVG
+│   │   │   └── fonts/     # Polices personnalisées
 │   │   ├── views/         # Pages Vue
 │   │   ├── api/           # Client API
+│   │   ├── composables/   # Composables Vue
+│   │   ├── plugins/       # Plugins (Vuetify)
 │   │   └── main.ts
 │   └── package.json
 ├── backend/               # Next.js (API serverless)
 │   ├── app/
 │   │   └── api/           # API Routes
-│   ├── lib/               # Utilitaires (Prisma client)
+│   ├── lib/               # Utilitaires (Prisma client, auth)
 │   ├── prisma/
 │   │   └── schema.prisma  # Schéma Prisma
 │   └── package.json
@@ -105,19 +114,35 @@ yarn install
 
 ### 3️⃣ Configuration des variables d'environnement
 
-Créer un fichier `.env` à la racine du projet :
+Le projet utilise des fichiers d'environnement séparés pour le développement et la production.
+
+#### 📝 Développement LOCAL
+
+Configurer le fichier `.env.development` dans le dossier `backend/` :
 
 ```env
-DATABASE_URL=postgresql://user:password@host:port/database
-NEXT_PUBLIC_API_URL=http://localhost:3000/api
-VITE_API_URL=http://localhost:3000/api
+# Base de données PostgreSQL LOCALE
+DATABASE_URL="postgresql://username:password@localhost:5432/store_management"
+
+# Secret JWT pour le développement
+JWT_SECRET="dev-secret-key-change-in-production"
+
+# URL de l'API
+NEXT_PUBLIC_API_URL="http://localhost:3000/api"
 ```
 
-**📚 Documentation détaillée :**
-- Voir `CREATE_ENV.md` pour les instructions complètes de configuration
-- Voir `ENV_SETUP.md` pour la configuration locale et Vercel
-- Voir `VERCEL_SETUP.md` pour le guide de configuration Vercel avec Prisma Postgres (recommandé)
-- Voir `VERCEL.md` pour le guide de déploiement général sur Vercel
+**Important :** Utilisez toujours votre base de données **locale** en développement, pas la base de production.
+
+#### 🚀 Production
+
+Les variables d'environnement de production sont configurées dans **Vercel** (Settings → Environment Variables) :
+
+- `DATABASE_URL` : Base de données de production
+- `PRISMA_DATABASE_URL` : Prisma Accelerate (optionnel)
+- `JWT_SECRET` : Secret fort pour la production
+- `NEXT_PUBLIC_API_URL` : URL de l'API de production
+
+**Note :** Next.js charge automatiquement `.env.development` en mode développement et les variables Vercel en production.
 
 ### 4️⃣ Initialiser la base de données
 
@@ -150,19 +175,23 @@ yarn workspace frontend dev
 
 ## 🔐 Sécurité & bonnes pratiques
 
-* Utilisation d’un ORM (Prisma) pour éviter les injections SQL
+* **Authentification JWT** avec tokens sécurisés
+* Mots de passe hashés avec bcrypt
+* Utilisation d'un ORM (Prisma) pour éviter les injections SQL
 * Stockage sécurisé des variables sensibles via `.env`
-* Architecture prête pour l’ajout d’authentification et de rôles utilisateurs
+* Protection des routes avec guards d'authentification
+* Gestion des rôles utilisateurs (user, admin)
 
 ---
 
 ## 🧩 Améliorations futures
 
-* Authentification (Admin / Vendeur)
+* Gestion avancée des rôles (Admin / Vendeur / Manager)
 * Gestion multi-devises (USD, EUR, CNY)
 * Dashboard analytique
 * Export Excel / PDF
 * Intégration API de taux de change en temps réel
+* Réinitialisation de mot de passe par email
 
 ---
 

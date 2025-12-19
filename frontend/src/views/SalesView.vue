@@ -1,85 +1,142 @@
 <template>
-  <div class="sales-view">
-    <div class="header">
-      <h1>Ventes</h1>
-      <button class="btn-primary" @click="showModal = true">
-        + Enregistrer une vente
-      </button>
-    </div>
+  <div>
+    <v-row>
+      <v-col cols="12" class="d-flex flex-column flex-sm-row justify-space-between align-start align-sm-center gap-3">
+        <h1 class="text-body-1 text-sm-h4">
+          <v-icon class="mr-2" color="info" size="small">mdi-cart-arrow-up</v-icon>
+          Ventes
+        </h1>
+        <v-btn color="info" @click="showDialog = true" class="d-sm-inline-block w-100 w-sm-auto" :size="$vuetify.display.xs ? 'small' : 'default'" :block="$vuetify.display.xs">
+          <v-icon class="mr-2" size="small">mdi-plus</v-icon>
+          Enregistrer une vente
+        </v-btn>
+      </v-col>
+    </v-row>
 
-    <div class="card">
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Produit</th>
-            <th>Quantité</th>
-            <th>Prix unitaire (MGA)</th>
-            <th>Revenu total (MGA)</th>
-            <th>Date</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="sale in sales" :key="sale.id">
-            <td>{{ sale.product?.name || 'N/A' }}</td>
-            <td>{{ sale.quantity }}</td>
-            <td>{{ formatCurrency(sale.priceMGA) }}</td>
-            <td>{{ formatCurrency(sale.totalRevenue) }}</td>
-            <td>{{ formatDate(sale.saleDate) }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    <v-row>
+      <v-col cols="12">
+        <v-card>
+          <v-card-title>Historique des Ventes</v-card-title>
+          <v-card-text>
+            <v-data-table
+              :headers="headers"
+              :items="sales"
+              :loading="loading"
+              item-key="id"
+            >
+              <template v-slot:item.product="{ item }">
+                {{ item.product?.name || 'N/A' }}
+              </template>
+              <template v-slot:item.priceMGA="{ item }">
+                {{ formatCurrency(item.priceMGA) }}
+              </template>
+              <template v-slot:item.totalRevenue="{ item }">
+                {{ formatCurrency(item.totalRevenue) }}
+              </template>
+              <template v-slot:item.saleDate="{ item }">
+                {{ formatDate(item.saleDate) }}
+              </template>
+            </v-data-table>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
 
-    <div v-if="showModal" class="modal" @click.self="showModal = false">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h2>Nouvelle Vente</h2>
-          <button class="close-btn" @click="showModal = false">×</button>
-        </div>
-        <form @submit.prevent="createSale">
-          <div class="form-group">
-            <label>Produit *</label>
-            <select v-model="newSale.productId" required>
-              <option value="">Sélectionner un produit</option>
-              <option
-                v-for="product in products"
-                :key="product.id"
-                :value="product.id"
-              >
-                {{ product.name }}
-              </option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Quantité *</label>
-            <input
-              v-model.number="newSale.quantity"
-              type="number"
-              min="1"
-              required
-            />
-          </div>
-          <div class="form-group">
-            <label>Prix de vente (MGA) *</label>
-            <input
-              v-model.number="newSale.priceMGA"
-              type="number"
-              step="0.01"
-              min="0"
-              required
-            />
-          </div>
-          <div class="form-group">
-            <label>Date de vente</label>
-            <input v-model="newSale.saleDate" type="date" />
-          </div>
-          <div style="display: flex; gap: 1rem; justify-content: flex-end">
-            <button type="button" @click="showModal = false">Annuler</button>
-            <button type="submit" class="btn-primary">Enregistrer</button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <v-dialog v-model="showDialog" max-width="700" persistent>
+      <v-card class="overflow-hidden">
+        <v-card-title class="text-white bg-info pa-6">
+          <v-icon class="mr-3" size="28">mdi-cart-arrow-up</v-icon>
+          <span class="text-h5 font-weight-bold">Nouvelle Vente</span>
+        </v-card-title>
+        <v-card-text class="pa-6">
+          <v-form ref="saleForm" @submit.prevent="createSale">
+            <v-row>
+              <v-col cols="12">
+                <v-select
+                  v-model="newSale.productId"
+                  :items="products"
+                  item-title="name"
+                  item-value="id"
+                  label="Produit *"
+                  required
+                  prepend-inner-icon="mdi-package-variant"
+                  variant="outlined"
+                  density="comfortable"
+                  :rules="[v => !!v || 'Veuillez sélectionner un produit']"
+                ></v-select>
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model.number="newSale.quantity"
+                  label="Quantité *"
+                  type="number"
+                  min="1"
+                  required
+                  prepend-inner-icon="mdi-numeric"
+                  variant="outlined"
+                  density="comfortable"
+                  :rules="[v => v > 0 || 'La quantité doit être supérieure à 0']"
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model.number="newSale.priceMGA"
+                  label="Prix de vente (MGA) *"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  required
+                  prepend-inner-icon="mdi-currency-usd"
+                  variant="outlined"
+                  density="comfortable"
+                  :rules="[v => v > 0 || 'Le prix doit être supérieur à 0']"
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="newSale.saleDate"
+                  label="Date de vente"
+                  type="date"
+                  prepend-inner-icon="mdi-calendar"
+                  variant="outlined"
+                  density="comfortable"
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-card color="success" variant="tonal" class="h-100 d-flex align-center">
+                  <v-card-text>
+                    <div class="text-caption text-medium-emphasis">Revenu total estimé</div>
+                    <div class="text-h6 font-weight-bold">
+                      {{ calculateTotalRevenue() }}
+                    </div>
+                  </v-card-text>
+                </v-card>
+              </v-col>
+            </v-row>
+          </v-form>
+        </v-card-text>
+        <v-divider></v-divider>
+        <v-card-actions class="pa-4">
+          <v-spacer></v-spacer>
+          <v-btn
+            color="grey-darken-1"
+            variant="outlined"
+            prepend-icon="mdi-close"
+            @click="showDialog = false"
+          >
+            Annuler
+          </v-btn>
+          <v-btn
+            color="info"
+            prepend-icon="mdi-check"
+            @click="createSale"
+            :loading="loading"
+          >
+            Enregistrer la vente
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -89,7 +146,9 @@ import { salesApi, productsApi, type Sale, type Product } from '@/api/client'
 
 const sales = ref<Sale[]>([])
 const products = ref<Product[]>([])
-const showModal = ref(false)
+const showDialog = ref(false)
+const loading = ref(false)
+const saleForm = ref<any>(null)
 const newSale = ref({
   productId: '',
   quantity: 1,
@@ -97,7 +156,16 @@ const newSale = ref({
   saleDate: new Date().toISOString().split('T')[0],
 })
 
+const headers = [
+  { title: 'Produit', key: 'product' },
+  { title: 'Quantité', key: 'quantity' },
+  { title: 'Prix unitaire (MGA)', key: 'priceMGA' },
+  { title: 'Revenu total (MGA)', key: 'totalRevenue' },
+  { title: 'Date', key: 'saleDate' },
+]
+
 const loadData = async () => {
+  loading.value = true
   try {
     const [salesRes, productsRes] = await Promise.all([
       salesApi.getAll(),
@@ -108,11 +176,17 @@ const loadData = async () => {
     products.value = productsRes.data
   } catch (error) {
     console.error('Error loading data:', error)
+  } finally {
+    loading.value = false
   }
 }
 
 const createSale = async () => {
+  const { valid } = await saleForm.value?.validate()
+  if (!valid) return
+
   try {
+    loading.value = true
     await salesApi.create(newSale.value)
     newSale.value = {
       productId: '',
@@ -120,11 +194,12 @@ const createSale = async () => {
       priceMGA: 0,
       saleDate: new Date().toISOString().split('T')[0],
     }
-    showModal.value = false
+    showDialog.value = false
     loadData()
   } catch (error) {
     console.error('Error creating sale:', error)
-    alert('Erreur lors de l\'enregistrement de la vente')
+  } finally {
+    loading.value = false
   }
 }
 
@@ -133,6 +208,13 @@ const formatCurrency = (value: number) => {
     style: 'currency',
     currency: 'MGA',
   }).format(value)
+}
+
+const calculateTotalRevenue = () => {
+  const quantity = newSale.value.quantity || 0
+  const priceMGA = newSale.value.priceMGA || 0
+  const total = quantity * priceMGA
+  return total > 0 ? formatCurrency(total) : '0 MGA'
 }
 
 const formatDate = (dateString: string) => {
@@ -145,15 +227,17 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
+/* Enlever les bordures internes des inputs */
+:deep(.v-field__input) {
+  border: none !important;
+  box-shadow: none !important;
 }
 
-.header h1 {
-  margin: 0;
+:deep(.v-field__field) {
+  border: none !important;
+}
+
+:deep(.v-input__details) {
+  border: none !important;
 }
 </style>
-

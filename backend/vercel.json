@@ -1,7 +1,10 @@
 {
-  "buildCommand": "cd backend && yarn build:vercel",
+  "buildCommand": "yarn build:vercel",
   "installCommand": "yarn install",
   "framework": "nextjs",
-  "regions": ["cdg1"]
+  "regions": ["cdg1"],
+  "env": {
+    "PRISMA_GENERATE_DATAPROXY": "true"
+  }
 }
 

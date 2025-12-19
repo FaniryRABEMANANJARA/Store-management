@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { getPrisma } from '@/lib/prisma'
 
 // GET /api/products - Récupérer tous les produits
 export async function GET() {
   try {
+    const prisma = getPrisma()
     const products = await prisma.product.findMany({
       include: {
+        category: true,
+        subCategory: true,
         purchases: true,
         sales: true,
       },
@@ -14,10 +17,13 @@ export async function GET() {
       },
     })
     return NextResponse.json(products)
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching products:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch products' },
+      { 
+        error: 'Failed to fetch products',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      },
       { status: 500 }
     )
   }
@@ -26,12 +32,28 @@ export async function GET() {
 // POST /api/products - Créer un nouveau produit
 export async function POST(request: NextRequest) {
   try {
+    const prisma = getPrisma()
     const body = await request.json()
-    const { name, description } = body
+    const { 
+      name, 
+      description, 
+      categoryId, 
+      subCategoryId,
+      color,
+      storage,
+      model,
+      battery,
+      simType,
+      condition,
+      ram,
+      processor,
+      screenSize,
+      graphics
+    } = body
 
-    if (!name) {
+    if (!name || !categoryId) {
       return NextResponse.json(
-        { error: 'Name is required' },
+        { error: 'Name and categoryId are required' },
         { status: 400 }
       )
     }
@@ -40,6 +62,22 @@ export async function POST(request: NextRequest) {
       data: {
         name,
         description: description || null,
+        categoryId,
+        subCategoryId: subCategoryId || null,
+        color: color || null,
+        storage: storage || null,
+        model: model || null,
+        battery: battery || null,
+        simType: simType || null,
+        condition: condition || null,
+        ram: ram || null,
+        processor: processor || null,
+        screenSize: screenSize || null,
+        graphics: graphics || null,
+      },
+      include: {
+        category: true,
+        subCategory: true,
       },
     })
 

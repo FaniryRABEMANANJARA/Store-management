@@ -27,6 +27,10 @@ yarn-error.log*
 # local env files
 .env*.local
 .env
+.env.development
+.env.production
+# Note: .env.development et .env.production peuvent être commités comme exemples
+# mais les valeurs sensibles doivent être dans .env.development.local
 
 # vercel
 .vercel

@@ -1,50 +1,110 @@
 <template>
-  <div class="dashboard">
-    <h1>Dashboard</h1>
-    <div class="stats-grid">
-      <div class="stat-card">
-        <h3>Total Produits</h3>
-        <p class="stat-value">{{ products.length }}</p>
-      </div>
-      <div class="stat-card">
-        <h3>Total Achats</h3>
-        <p class="stat-value">{{ purchases.length }}</p>
-      </div>
-      <div class="stat-card">
-        <h3>Total Ventes</h3>
-        <p class="stat-value">{{ sales.length }}</p>
-      </div>
-      <div class="stat-card">
-        <h3>Taux de Change Actif</h3>
-        <p class="stat-value">{{ activeExchangeRate?.rate || 'N/A' }}</p>
-      </div>
-    </div>
+  <div>
+    <v-row>
+      <v-col cols="12">
+        <h1 class="text-h4 mb-6">
+          <v-icon class="mr-2" color="primary">mdi-view-dashboard</v-icon>
+          Dashboard
+        </h1>
+      </v-col>
+    </v-row>
 
-    <div class="card">
-      <h2>Bénéfices par Produit</h2>
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Produit</th>
-            <th>Coût Total (MGA)</th>
-            <th>Revenu Total (MGA)</th>
-            <th>Bénéfice/Perte (MGA)</th>
-            <th>Stock</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="profit in profits" :key="profit.productId">
-            <td>{{ profit.productName }}</td>
-            <td>{{ formatCurrency(profit.totalCost) }}</td>
-            <td>{{ formatCurrency(profit.totalRevenue) }}</td>
-            <td :class="profit.profit >= 0 ? 'profit' : 'loss'">
-              {{ formatCurrency(profit.profit) }}
-            </td>
-            <td>{{ profit.stock }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    <v-row>
+      <v-col cols="12" sm="6" md="3">
+        <v-card color="primary" dark>
+          <v-card-text>
+            <div class="text-h6 mb-2">
+              <v-icon class="mr-2">mdi-package-variant</v-icon>
+              Total Produits
+            </div>
+            <div class="text-h3">{{ products.length }}</div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+      <v-col cols="12" sm="6" md="3">
+        <v-card color="success" dark>
+          <v-card-text>
+            <div class="text-h6 mb-2">
+              <v-icon class="mr-2">mdi-cart-arrow-down</v-icon>
+              Total Achats
+            </div>
+            <div class="text-h3">{{ purchases.length }}</div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+      <v-col cols="12" sm="6" md="3">
+        <v-card color="info" dark>
+          <v-card-text>
+            <div class="text-h6 mb-2">
+              <v-icon class="mr-2">mdi-cart-arrow-up</v-icon>
+              Total Ventes
+            </div>
+            <div class="text-h3">{{ sales.length }}</div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+      <v-col cols="12" sm="6" md="3">
+        <v-card color="warning" dark>
+          <v-card-text>
+            <div class="text-h6 mb-2">
+              <v-icon class="mr-2">mdi-currency-exchange</v-icon>
+              Taux de Change
+            </div>
+            <div class="text-h3">
+              {{ activeExchangeRate?.rate ? activeExchangeRate.rate.toLocaleString('fr-FR') : 'N/A' }}
+            </div>
+            <div v-if="!activeExchangeRate" class="text-caption mt-1 opacity-75">
+              Aucun taux actif
+            </div>
+            <div v-else-if="activeExchangeRate.date" class="text-caption mt-1 opacity-75">
+              {{ formatDate(activeExchangeRate.date) }}
+            </div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+
+    <v-row>
+      <v-col cols="12">
+        <v-card>
+          <v-card-title>
+            <v-icon class="mr-2" color="primary">mdi-chart-line</v-icon>
+            Bénéfices par Produit
+          </v-card-title>
+          <v-card-text>
+            <v-data-table
+              :headers="profitHeaders"
+              :items="profits"
+              :loading="loading"
+              item-key="productId"
+            >
+              <template v-slot:item.totalCost="{ item }">
+                {{ formatCurrency(item.totalCost) }}
+              </template>
+              <template v-slot:item.totalRevenue="{ item }">
+                {{ formatCurrency(item.totalRevenue) }}
+              </template>
+              <template v-slot:item.profit="{ item }">
+                <v-chip
+                  :color="item.profit >= 0 ? 'success' : 'error'"
+                  dark
+                >
+                  {{ formatCurrency(item.profit) }}
+                </v-chip>
+              </template>
+              <template v-slot:item.stock="{ item }">
+                <v-chip
+                  :color="item.stock > 0 ? 'info' : 'warning'"
+                  dark
+                >
+                  {{ item.stock }}
+                </v-chip>
+              </template>
+            </v-data-table>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
   </div>
 </template>
 
@@ -67,22 +127,31 @@ const purchases = ref<Purchase[]>([])
 const sales = ref<Sale[]>([])
 const activeExchangeRate = ref<ExchangeRate | null>(null)
 const profits = ref<Profit[]>([])
+const loading = ref(false)
+
+const profitHeaders = [
+  { title: 'Produit', key: 'productName' },
+  { title: 'Coût Total (MGA)', key: 'totalCost' },
+  { title: 'Revenu Total (MGA)', key: 'totalRevenue' },
+  { title: 'Bénéfice/Perte (MGA)', key: 'profit' },
+  { title: 'Stock', key: 'stock' },
+]
 
 const loadData = async () => {
+  loading.value = true
   try {
     const [productsRes, purchasesRes, salesRes, exchangeRes] = await Promise.all([
       productsApi.getAll(),
       purchasesApi.getAll(),
       salesApi.getAll(),
-      exchangeRatesApi.getActive(),
+      exchangeRatesApi.getActive().catch(() => ({ data: null })), // Gérer le cas où il n'y a pas de taux actif
     ])
 
     products.value = productsRes.data
     purchases.value = purchasesRes.data
     sales.value = salesRes.data
-    activeExchangeRate.value = exchangeRes.data
+    activeExchangeRate.value = exchangeRes.data || null
 
-    // Calculer les bénéfices pour chaque produit
     const profitPromises = products.value.map((product) =>
       productsApi.getProfit(product.id)
     )
@@ -90,6 +159,8 @@ const loadData = async () => {
     profits.value = profitResults.map((res) => res.data)
   } catch (error) {
     console.error('Error loading dashboard data:', error)
+  } finally {
+    loading.value = false
   }
 }
 
@@ -100,54 +171,15 @@ const formatCurrency = (value: number) => {
   }).format(value)
 }
 
+const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString('fr-FR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  })
+}
+
 onMounted(() => {
   loadData()
 })
 </script>
-
-<style scoped>
-.dashboard h1 {
-  margin-bottom: 2rem;
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-}
-
-.stat-card {
-  background: white;
-  border-radius: 12px;
-  padding: 2rem;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  text-align: center;
-}
-
-.stat-card h3 {
-  color: #666;
-  font-size: 0.9rem;
-  margin-bottom: 0.5rem;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
-.stat-value {
-  font-size: 2rem;
-  font-weight: bold;
-  color: #667eea;
-  margin: 0;
-}
-
-.profit {
-  color: #27ae60;
-  font-weight: bold;
-}
-
-.loss {
-  color: #e74c3c;
-  font-weight: bold;
-}
-</style>
-

@@ -10,29 +10,96 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Category {
+  id          String       @id @default(uuid())
+  name        String       @unique
+  description String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  subCategories SubCategory[]
+  products      Product[]
+
+  @@map("categories")
+}
+
+model SubCategory {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  categoryId  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  category Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  products Product[]
+
+  @@unique([name, categoryId])
+  @@map("sub_categories")
+}
+
 model Product {
   id          String   @id @default(uuid())
   name        String
   description String?
+  
+  // Relations avec catégories
+  categoryId    String
+  subCategoryId String?
+  
+  // Attributs spécifiques du produit
+  color      String?  // Couleur
+  storage    String?  // Stockage (ex: 64GB, 128GB, 256GB, 512GB, 1TB)
+  model      String?  // Modèle (ex: iPhone 15 Pro, MacBook Air M2)
+  battery    String?  // Batterie (ex: 4000mAh) - pour téléphones
+  simType    String?  // Type de SIM: "dual_sim", "esim", "dual_sim_esim" - pour téléphones
+  condition  String?  // État: "new", "refurbished", "used", "like_new"
+  
+  // Attributs spécifiques aux ordinateurs
+  ram        String?  // RAM (ex: 8GB, 16GB, 32GB)
+  processor  String?  // Processeur (ex: M2, M2 Pro, Intel i7, AMD Ryzen 7)
+  screenSize String?  // Taille d'écran (ex: 13", 14", 15", 16")
+  graphics   String?  // Carte graphique (ex: M2 GPU, NVIDIA RTX 3060)
+  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  purchases Purchase[]
-  sales     Sale[]
+  category    Category     @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  subCategory SubCategory? @relation(fields: [subCategoryId], references: [id], onDelete: SetNull)
+  orders     Order[]
+  purchases   Purchase[]
+  sales       Sale[]
 
   @@map("products")
 }
 
+model Order {
+  id           String   @id @default(uuid())
+  productId    String
+  quantity     Int
+  priceRMB     Float // Prix d'achat estimé en RMB
+  exchangeRate Float // Taux de change utilisé
+  totalCostMGA Float // Coût total estimé en MGA (priceRMB * exchangeRate * quantity)
+  status       String   @default("pending") // pending, processing, completed, cancelled
+  orderDate    DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("orders")
+}
+
 model Purchase {
-  id            String   @id @default(uuid())
-  productId     String
-  quantity      Int
-  priceRMB      Float    // Prix d'achat en RMB
-  exchangeRate  Float    // Taux de change utilisé lors de l'achat
-  totalCostMGA  Float    // Coût total en MGA (priceRMB * exchangeRate * quantity)
-  purchaseDate  DateTime @default(now())
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String   @id @default(uuid())
+  productId    String
+  quantity     Int
+  priceRMB     Float // Prix d'achat en RMB
+  exchangeRate Float // Taux de change utilisé lors de l'achat
+  totalCostMGA Float // Coût total en MGA (priceRMB * exchangeRate * quantity)
+  purchaseDate DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
@@ -43,8 +110,8 @@ model Sale {
   id           String   @id @default(uuid())
   productId    String
   quantity     Int
-  priceMGA     Float    // Prix de vente en MGA
-  totalRevenue Float    // Revenu total (priceMGA * quantity)
+  priceMGA     Float // Prix de vente en MGA
+  totalRevenue Float // Revenu total (priceMGA * quantity)
   saleDate     DateTime @default(now())
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -56,7 +123,7 @@ model Sale {
 
 model ExchangeRate {
   id        String   @id @default(uuid())
-  rate      Float    // Taux de change RMB vers MGA
+  rate      Float // Taux de change RMB vers MGA
   date      DateTime @default(now())
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
@@ -65,3 +132,14 @@ model ExchangeRate {
   @@map("exchange_rates")
 }
 
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  password  String // Hash du mot de passe
+  role      String   @default("user") // user, admin
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}

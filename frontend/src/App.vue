@@ -1,73 +1,132 @@
 <template>
-  <div id="app">
-    <nav class="navbar">
-      <div class="nav-container">
-        <h1 class="logo">📦 Store Management</h1>
-        <ul class="nav-links">
-          <li><router-link to="/">Dashboard</router-link></li>
-          <li><router-link to="/products">Produits</router-link></li>
-          <li><router-link to="/purchases">Achats</router-link></li>
-          <li><router-link to="/sales">Ventes</router-link></li>
-        </ul>
-      </div>
-    </nav>
-    <main class="main-content">
-      <router-view />
-    </main>
-  </div>
+  <v-app>
+    <!-- Layout principal uniquement si l'utilisateur est authentifié -->
+    <template v-if="isAuthenticated">
+      <v-navigation-drawer
+        v-model="drawer"
+        :temporary="$vuetify.display.mobile"
+        app
+        color="primary"
+        dark
+      >
+        <v-list nav density="compact">
+          <v-list-item
+            prepend-icon="mdi-view-dashboard"
+            title="Dashboard"
+            to="/"
+          ></v-list-item>
+          <v-list-item
+            prepend-icon="mdi-chart-line"
+            title="Budget & CA"
+            to="/budget"
+          ></v-list-item>
+          <v-list-item
+            prepend-icon="mdi-folder-multiple"
+            title="Catégories"
+            to="/categories"
+          ></v-list-item>
+          <v-list-item
+            prepend-icon="mdi-package-variant"
+            title="Produits"
+            to="/products"
+          ></v-list-item>
+         
+          <v-list-item
+            prepend-icon="mdi-cart-outline"
+            title="Commandes"
+            to="/orders"
+          ></v-list-item>
+          <v-list-item
+            prepend-icon="mdi-cart-arrow-down"
+            title="Achats"
+            to="/purchases"
+          ></v-list-item>
+          <v-list-item
+            prepend-icon="mdi-cart-arrow-up"
+            title="Ventes"
+            to="/sales"
+          ></v-list-item>
+        </v-list>
+      </v-navigation-drawer>
+
+      <v-app-bar app color="primary" dark>
+        <v-app-bar-nav-icon
+          @click="drawer = !drawer"
+        ></v-app-bar-nav-icon>
+        <v-toolbar-title>
+          <v-icon class="mr-2">mdi-package-variant</v-icon>
+          Store Management
+        </v-toolbar-title>
+        <v-spacer></v-spacer>
+        
+        <v-menu location="bottom end">
+          <template v-slot:activator="{ props }">
+            <v-btn icon v-bind="props">
+              <v-avatar size="32" color="white">
+                <v-icon color="primary">mdi-account-circle</v-icon>
+              </v-avatar>
+            </v-btn>
+          </template>
+          <v-list>
+            <v-list-item>
+              <v-list-item-title class="text-body-2 font-weight-bold">
+                {{ user?.name }}
+              </v-list-item-title>
+              <v-list-item-subtitle class="text-caption">
+                {{ user?.email }}
+              </v-list-item-subtitle>
+            </v-list-item>
+            <v-divider></v-divider>
+            <v-list-item @click="handleLogout" prepend-icon="mdi-logout">
+              <v-list-item-title>Déconnexion</v-list-item-title>
+            </v-list-item>
+          </v-list>
+        </v-menu>
+      </v-app-bar>
+
+      <v-main style="background-color: #F5F7FA;">
+        <v-container fluid>
+          <router-view />
+        </v-container>
+      </v-main>
+
+      <v-footer app color="primary" dark>
+        <v-spacer></v-spacer>
+        <div>
+          © {{ new Date().getFullYear() }} Store Management System. Tous droits réservés.
+        </div>
+        <v-spacer></v-spacer>
+      </v-footer>
+    </template>
+
+    <!-- Vue simple pour les pages d'authentification -->
+    <template v-else>
+      <v-main>
+        <router-view />
+      </v-main>
+    </template>
+  </v-app>
 </template>
 
 <script setup lang="ts">
-// App component
+import { ref, onMounted } from 'vue'
+import { useAuth } from './composables/useAuth'
+
+const drawer = ref(true)
+const { isAuthenticated, user, logout, fetchUser } = useAuth()
+
+onMounted(async () => {
+  // Vérifier l'authentification au chargement
+  if (localStorage.getItem('token')) {
+    await fetchUser()
+  }
+})
+
+async function handleLogout() {
+  await logout()
+}
 </script>
 
-<style scoped>
-.navbar {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 1rem 0;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-}
-
-.nav-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 2rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.logo {
-  margin: 0;
-  font-size: 1.5rem;
-}
-
-.nav-links {
-  display: flex;
-  list-style: none;
-  gap: 2rem;
-  margin: 0;
-  padding: 0;
-}
-
-.nav-links a {
-  color: white;
-  text-decoration: none;
-  font-weight: 500;
-  transition: opacity 0.3s;
-}
-
-.nav-links a:hover,
-.nav-links a.router-link-active {
-  opacity: 0.8;
-  text-decoration: underline;
-}
-
-.main-content {
-  max-width: 1200px;
-  margin: 2rem auto;
-  padding: 0 2rem;
-}
+<style>
+/* Styles globaux si nécessaire */
 </style>
-
