@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import { getPrisma } from '@/lib/prisma'
 import { handleCORS, corsHeaders } from '@/lib/cors'
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic'
+
 // Gérer les requêtes OPTIONS (preflight CORS)
 export async function OPTIONS() {
   return handleCORS()

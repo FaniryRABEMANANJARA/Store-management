@@ -15,11 +15,13 @@ out/
 # Environment variables
 .env
 .env.local
+.env.development
+.env.production
 .env.development.local
 .env.production.local
 .env.test.local
-# Note: .env.development et .env.production peuvent être commités comme exemples
-# mais les valeurs sensibles doivent être dans .env.development.local
+# Note: Les fichiers .env avec des valeurs sensibles ne doivent JAMAIS être commités
+# Utilisez .env.example pour documenter les variables nécessaires
 
 # Logs
 npm-debug.log*

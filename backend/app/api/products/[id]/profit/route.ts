@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic'
+
 // GET /api/products/[id]/profit - Calculer le bénéfice/perte d'un produit
 export async function GET(
   request: NextRequest,

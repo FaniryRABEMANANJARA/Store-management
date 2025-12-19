@@ -3,6 +3,9 @@ import { getPrisma } from '@/lib/prisma'
 import { hashPassword, generateToken } from '@/lib/auth'
 import { handleCORS, corsHeaders } from '@/lib/cors'
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic'
+
 // Gérer les requêtes OPTIONS (preflight CORS)
 export async function OPTIONS() {
   return handleCORS()
