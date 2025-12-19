@@ -1,9 +1,26 @@
 import axios from 'axios'
 
 // En développement, utiliser le proxy Vite (/api)
-// En production, utiliser l'URL complète de l'API
+// En production, utiliser VITE_API_URL si défini, sinon utiliser une URL relative
 // Le proxy Vite redirige automatiquement vers le backend (port 3000 ou autre)
-const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '/api' : 'http://localhost:3000/api')
+const getApiUrl = () => {
+  // Si VITE_API_URL est défini, l'utiliser (pour production avec backend séparé)
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL
+  }
+  
+  // En développement, utiliser le proxy Vite
+  if (import.meta.env.DEV) {
+    return '/api'
+  }
+  
+  // En production sans VITE_API_URL, utiliser une URL relative
+  // Cela fonctionne si le frontend et le backend sont sur le même domaine
+  // Sinon, il faut configurer VITE_API_URL dans Vercel
+  return '/api'
+}
+
+const API_URL = getApiUrl()
 
 export const apiClient = axios.create({
   baseURL: API_URL,
