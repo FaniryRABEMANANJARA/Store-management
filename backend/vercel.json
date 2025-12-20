@@ -1,5 +1,5 @@
 {
-  "buildCommand": "yarn build:vercel",
+  "buildCommand": "yarn install --ignore-workspace-root-check && yarn build:vercel",
   "installCommand": "yarn install --ignore-workspace-root-check",
   "framework": "nextjs",
   "regions": ["cdg1"],
