@@ -3,7 +3,7 @@
   "installCommand": "cd backend && yarn install --ignore-workspace-root-check",
   "framework": "nextjs",
   "regions": ["cdg1"],
-    "env": {
+  "env": {
     "PRISMA_GENERATE_DATAPROXY": "true"
   }
 }
