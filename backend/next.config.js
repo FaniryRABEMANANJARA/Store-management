@@ -1,8 +1,18 @@
+const path = require('path')
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   env: {
     DATABASE_URL: process.env.DATABASE_URL,
+  },
+  // Configuration des alias de chemins
+  webpack: (config) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@': path.resolve(__dirname, '.'),
+    }
+    return config
   },
   // Configuration CORS pour permettre les requêtes depuis le frontend
   async headers() {
