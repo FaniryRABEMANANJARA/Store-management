@@ -8,13 +8,14 @@
     "backend"
   ],
   "scripts": {
-    "dev": "concurrently \"yarn workspace backend dev\" \"yarn workspace frontend dev\"",
-    "build": "yarn workspace frontend build",
-    "build:local": "yarn workspace backend build && yarn workspace frontend build",
-    "prisma:generate": "yarn workspace backend prisma:generate",
-    "prisma:migrate": "yarn workspace backend prisma:migrate",
-    "prisma:studio": "yarn workspace backend prisma:studio"
-  },
+  "dev": "concurrently \"yarn workspace backend dev\" \"yarn workspace frontend dev\"",
+  "build": "yarn workspace backend build",
+  "build:frontend": "yarn workspace frontend build",
+  "build:local": "yarn workspace backend build && yarn workspace frontend build",
+  "prisma:generate": "yarn workspace backend prisma:generate",
+  "prisma:migrate": "yarn workspace backend prisma:migrate",
+  "prisma:studio": "yarn workspace backend prisma:studio"
+},
   "devDependencies": {
     "concurrently": "^8.2.2"
   },
