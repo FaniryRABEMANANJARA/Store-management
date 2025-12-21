@@ -1,7 +1,0 @@
-{
-  "buildCommand": "yarn build",
-  "installCommand": "yarn install --ignore-workspace-root-check",
-  "framework": null,
-  "outputDirectory": "dist"
-}
-
