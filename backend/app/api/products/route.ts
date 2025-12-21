@@ -91,10 +91,14 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json(product, { status: 201, headers: corsHeaders() })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating product:', error)
     return NextResponse.json(
-      { error: 'Failed to create product' },
+      { 
+        error: 'Failed to create product',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+        code: error.code
+      },
       { status: 500, headers: corsHeaders() }
     )
   }

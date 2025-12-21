@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { getPrisma } from '@/lib/prisma'
 import { handleCORS, corsHeaders } from '@/lib/cors'
 
 // Force dynamic rendering for this route
@@ -13,6 +13,7 @@ export async function OPTIONS() {
 // GET /api/purchases - Récupérer tous les achats
 export async function GET() {
   try {
+    const prisma = getPrisma()
     const purchases = await prisma.purchase.findMany({
       include: {
         product: true,
@@ -22,10 +23,13 @@ export async function GET() {
       },
     })
     return NextResponse.json(purchases, { headers: corsHeaders() })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching purchases:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch purchases' },
+      { 
+        error: 'Failed to fetch purchases',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      },
       { status: 500, headers: corsHeaders() }
     )
   }
@@ -34,6 +38,7 @@ export async function GET() {
 // POST /api/purchases - Créer un nouvel achat
 export async function POST(request: NextRequest) {
   try {
+    const prisma = getPrisma()
     const body = await request.json()
     const { productId, quantity, priceRMB, exchangeRate, purchaseDate } = body
 
@@ -62,10 +67,13 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json(purchase, { status: 201, headers: corsHeaders() })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating purchase:', error)
     return NextResponse.json(
-      { error: 'Failed to create purchase' },
+      { 
+        error: 'Failed to create purchase',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      },
       { status: 500, headers: corsHeaders() }
     )
   }

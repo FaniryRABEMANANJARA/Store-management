@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { getPrisma } from '@/lib/prisma'
 import { handleCORS, corsHeaders } from '@/lib/cors'
 
 // Force dynamic rendering for this route
@@ -13,6 +13,7 @@ export async function OPTIONS() {
 // GET /api/sales - Récupérer toutes les ventes
 export async function GET() {
   try {
+    const prisma = getPrisma()
     const sales = await prisma.sale.findMany({
       include: {
         product: true,
@@ -22,10 +23,13 @@ export async function GET() {
       },
     })
     return NextResponse.json(sales, { headers: corsHeaders() })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching sales:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch sales' },
+      { 
+        error: 'Failed to fetch sales',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      },
       { status: 500, headers: corsHeaders() }
     )
   }
@@ -34,6 +38,7 @@ export async function GET() {
 // POST /api/sales - Créer une nouvelle vente
 export async function POST(request: NextRequest) {
   try {
+    const prisma = getPrisma()
     const body = await request.json()
     const { productId, quantity, priceMGA, saleDate } = body
 
@@ -61,10 +66,13 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json(sale, { status: 201, headers: corsHeaders() })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating sale:', error)
     return NextResponse.json(
-      { error: 'Failed to create sale' },
+      { 
+        error: 'Failed to create sale',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      },
       { status: 500, headers: corsHeaders() }
     )
   }

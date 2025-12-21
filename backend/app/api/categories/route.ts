@@ -77,7 +77,11 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: 'Failed to create category' },
+      { 
+        error: 'Failed to create category',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+        code: error.code
+      },
       { status: 500, headers: corsHeaders() }
     )
   }
