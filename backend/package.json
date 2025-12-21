@@ -15,6 +15,7 @@
     "prisma:check-migrations": "tsx prisma/check-migrations.ts",
     "prisma:diagnose": "tsx prisma/diagnose-db.ts",
     "prisma:status": "prisma migrate status",
+    "test:categories": "node scripts/test-categories-crud.js",
     "seed": "node prisma/seed.js",
     "clear-data": "node prisma/clear-data.js"
   },
