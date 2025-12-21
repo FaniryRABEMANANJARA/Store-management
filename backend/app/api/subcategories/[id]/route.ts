@@ -10,38 +10,36 @@ export async function OPTIONS() {
   return handleCORS()
 }
 
-// GET /api/categories/[id] - Récupérer une catégorie par ID
+// GET /api/subcategories/[id] - Récupérer une sous-catégorie par ID
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
     const prisma = getPrisma()
-    const category = await prisma.category.findUnique({
+    const subCategory = await prisma.subCategory.findUnique({
       where: { id: params.id },
       include: {
-        subCategories: {
-          orderBy: { name: 'asc' },
-        },
+        category: true,
         _count: {
           select: { products: true },
         },
       },
     })
 
-    if (!category) {
+    if (!subCategory) {
       return NextResponse.json(
-        { error: 'Category not found' },
+        { error: 'SubCategory not found' },
         { status: 404, headers: corsHeaders() }
       )
     }
 
-    return NextResponse.json(category, { headers: corsHeaders() })
+    return NextResponse.json(subCategory, { headers: corsHeaders() })
   } catch (error: any) {
-    console.error('Error fetching category:', error)
+    console.error('Error fetching subcategory:', error)
     return NextResponse.json(
       { 
-        error: 'Failed to fetch category',
+        error: 'Failed to fetch subcategory',
         details: process.env.NODE_ENV === 'development' ? error.message : undefined
       },
       { status: 500, headers: corsHeaders() }
@@ -49,7 +47,7 @@ export async function GET(
   }
 }
 
-// PUT /api/categories/[id] - Mettre à jour une catégorie
+// PUT /api/subcategories/[id] - Mettre à jour une sous-catégorie
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -57,7 +55,7 @@ export async function PUT(
   try {
     const prisma = getPrisma()
     const body = await request.json()
-    const { name, description, fieldConfig } = body
+    const { name, description, categoryId } = body
 
     if (!name) {
       return NextResponse.json(
@@ -66,46 +64,44 @@ export async function PUT(
       )
     }
 
-    const category = await prisma.category.update({
+    const subCategory = await prisma.subCategory.update({
       where: { id: params.id },
       data: {
         name,
         description: description || null,
-        fieldConfig: fieldConfig || null,
+        categoryId: categoryId || undefined,
       },
       include: {
-        subCategories: {
-          orderBy: { name: 'asc' },
-        },
+        category: true,
         _count: {
           select: { products: true },
         },
       },
     })
 
-    return NextResponse.json(category, { headers: corsHeaders() })
+    return NextResponse.json(subCategory, { headers: corsHeaders() })
   } catch (error: any) {
-    console.error('Error updating category:', error)
+    console.error('Error updating subcategory:', error)
     
     // Gérer les erreurs de contrainte unique
     if (error.code === 'P2002') {
       return NextResponse.json(
-        { error: 'Category with this name already exists' },
+        { error: 'Subcategory with this name already exists in this category' },
         { status: 400, headers: corsHeaders() }
       )
     }
 
-    // Gérer les erreurs de catégorie non trouvée
+    // Gérer les erreurs de sous-catégorie non trouvée
     if (error.code === 'P2025') {
       return NextResponse.json(
-        { error: 'Category not found' },
+        { error: 'SubCategory not found' },
         { status: 404, headers: corsHeaders() }
       )
     }
 
     return NextResponse.json(
       { 
-        error: 'Failed to update category',
+        error: 'Failed to update subcategory',
         details: process.env.NODE_ENV === 'development' ? error.message : undefined,
         code: error.code
       },
@@ -114,7 +110,7 @@ export async function PUT(
   }
 }
 
-// DELETE /api/categories/[id] - Supprimer une catégorie
+// DELETE /api/subcategories/[id] - Supprimer une sous-catégorie
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -122,8 +118,8 @@ export async function DELETE(
   try {
     const prisma = getPrisma()
     
-    // Vérifier si la catégorie existe et a des produits
-    const category = await prisma.category.findUnique({
+    // Vérifier si la sous-catégorie existe et a des produits
+    const subCategory = await prisma.subCategory.findUnique({
       where: { id: params.id },
       include: {
         _count: {
@@ -132,54 +128,36 @@ export async function DELETE(
       },
     })
 
-    if (!category) {
+    if (!subCategory) {
       return NextResponse.json(
-        { error: 'Category not found' },
+        { error: 'SubCategory not found' },
         { status: 404, headers: corsHeaders() }
       )
     }
 
-    // Vérifier si la catégorie a des produits (onDelete: Restrict dans le schéma)
-    if (category._count.products > 0) {
-      return NextResponse.json(
-        { 
-          error: 'Cannot delete category with associated products',
-          productCount: category._count.products
-        },
-        { status: 400, headers: corsHeaders() }
-      )
-    }
-
-    await prisma.category.delete({
+    // Note: Les produits avec cette sous-catégorie auront subCategoryId = null (onDelete: SetNull)
+    await prisma.subCategory.delete({
       where: { id: params.id },
     })
 
     return NextResponse.json(
-      { message: 'Category deleted successfully' },
+      { message: 'SubCategory deleted successfully' },
       { headers: corsHeaders() }
     )
   } catch (error: any) {
-    console.error('Error deleting category:', error)
+    console.error('Error deleting subcategory:', error)
     
-    // Gérer les erreurs de contrainte (produits associés)
-    if (error.code === 'P2003') {
-      return NextResponse.json(
-        { error: 'Cannot delete category with associated products' },
-        { status: 400, headers: corsHeaders() }
-      )
-    }
-
-    // Gérer les erreurs de catégorie non trouvée
+    // Gérer les erreurs de sous-catégorie non trouvée
     if (error.code === 'P2025') {
       return NextResponse.json(
-        { error: 'Category not found' },
+        { error: 'SubCategory not found' },
         { status: 404, headers: corsHeaders() }
       )
     }
 
     return NextResponse.json(
       { 
-        error: 'Failed to delete category',
+        error: 'Failed to delete subcategory',
         details: process.env.NODE_ENV === 'development' ? error.message : undefined,
         code: error.code
       },

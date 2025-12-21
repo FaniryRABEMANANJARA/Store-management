@@ -348,6 +348,57 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- Snackbar pour les notifications -->
+    <v-snackbar
+      v-model="snackbar.show"
+      :color="snackbar.color"
+      :timeout="snackbar.timeout"
+      location="top right"
+    >
+      <div class="d-flex align-center">
+        <v-icon class="mr-2">{{ snackbar.icon }}</v-icon>
+        <span>{{ snackbar.message }}</span>
+      </div>
+      <template v-slot:actions>
+        <v-btn
+          variant="text"
+          @click="snackbar.show = false"
+        >
+          Fermer
+        </v-btn>
+      </template>
+    </v-snackbar>
+
+    <!-- Dialog de confirmation pour la suppression -->
+    <v-dialog v-model="showDeleteConfirmDialog" max-width="500" persistent>
+      <v-card>
+        <v-card-title class="text-h6 bg-error text-white pa-4">
+          <v-icon class="mr-2">mdi-alert</v-icon>
+          Confirmer la suppression
+        </v-card-title>
+        <v-card-text class="pa-4">
+          <p class="text-body-1">{{ deleteConfirmMessage }}</p>
+        </v-card-text>
+        <v-card-actions class="pa-4">
+          <v-spacer></v-spacer>
+          <v-btn
+            color="grey-darken-1"
+            variant="outlined"
+            @click="showDeleteConfirmDialog = false"
+          >
+            Annuler
+          </v-btn>
+          <v-btn
+            color="error"
+            @click="confirmDelete"
+            :loading="loading"
+          >
+            Supprimer
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -386,6 +437,32 @@ const newSubCategory = ref({
 
 const editingSubCategory = ref<SubCategory | null>(null)
 
+// Snackbar
+const snackbar = ref({
+  show: false,
+  message: '',
+  color: 'success',
+  timeout: 4000,
+  icon: 'mdi-check-circle',
+})
+
+// Dialog de confirmation
+const showDeleteConfirmDialog = ref(false)
+const deleteConfirmMessage = ref('')
+const deleteConfirmCallback = ref<(() => void) | null>(null)
+
+const showSnackbar = (message: string, color: 'success' | 'error' | 'warning' | 'info' = 'success') => {
+  snackbar.value = {
+    show: true,
+    message,
+    color,
+    timeout: color === 'error' ? 6000 : 4000,
+    icon: color === 'success' ? 'mdi-check-circle' : 
+          color === 'error' ? 'mdi-alert-circle' : 
+          color === 'warning' ? 'mdi-alert' : 'mdi-information',
+  }
+}
+
 const loadCategories = async () => {
   loading.value = true
   try {
@@ -410,9 +487,10 @@ const createCategory = async () => {
     })
     cancelCreateCategory()
     await loadCategories()
+    showSnackbar('Catégorie créée avec succès', 'success')
   } catch (error: any) {
     console.error('Error creating category:', error)
-    alert(error.response?.data?.error || 'Erreur lors de la création de la catégorie')
+    showSnackbar(error.response?.data?.error || 'Erreur lors de la création de la catégorie', 'error')
   } finally {
     loading.value = false
   }
@@ -440,32 +518,52 @@ const updateCategory = async () => {
 
   try {
     loading.value = true
-    // Note: L'API de mise à jour n'existe peut-être pas encore, à implémenter si nécessaire
-    // await categoriesApi.update(editingCategory.value.id, {
-    //   name: editingCategory.value.name,
-    //   description: editingCategory.value.description || undefined,
-    // })
-    alert('La fonctionnalité de modification sera disponible prochainement')
+    await categoriesApi.update(editingCategory.value.id, {
+      name: editingCategory.value.name,
+      description: editingCategory.value.description || undefined,
+      fieldConfig: editingCategory.value.fieldConfig,
+    })
     showEditCategoryDialog.value = false
     await loadCategories()
-  } catch (error) {
+    showSnackbar('Catégorie modifiée avec succès', 'success')
+  } catch (error: any) {
     console.error('Error updating category:', error)
+    showSnackbar(error.response?.data?.error || 'Erreur lors de la modification de la catégorie', 'error')
   } finally {
     loading.value = false
   }
 }
 
 const deleteCategory = async (id: string) => {
-  if (!confirm('Êtes-vous sûr de vouloir supprimer cette catégorie ? Toutes les sous-catégories et produits associés seront également supprimés.')) {
-    return
+  deleteConfirmMessage.value = 'Êtes-vous sûr de vouloir supprimer cette catégorie ? Cette action ne peut pas être annulée.'
+  deleteConfirmCallback.value = async () => {
+    try {
+      loading.value = true
+      await categoriesApi.delete(id)
+      await loadCategories()
+      showSnackbar('Catégorie supprimée avec succès', 'success')
+    } catch (error: any) {
+      console.error('Error deleting category:', error)
+      const errorMessage = error.response?.data?.error || 'Erreur lors de la suppression de la catégorie'
+      if (error.response?.data?.productCount) {
+        showSnackbar(
+          `${errorMessage}. Cette catégorie contient ${error.response.data.productCount} produit(s). Veuillez d'abord supprimer ou déplacer ces produits.`,
+          'error'
+        )
+      } else {
+        showSnackbar(errorMessage, 'error')
+      }
+    } finally {
+      loading.value = false
+      showDeleteConfirmDialog.value = false
+    }
   }
+  showDeleteConfirmDialog.value = true
+}
 
-  try {
-    // Note: L'API de suppression n'existe peut-être pas encore, à implémenter si nécessaire
-    alert('La fonctionnalité de suppression sera disponible prochainement')
-    await loadCategories()
-  } catch (error) {
-    console.error('Error deleting category:', error)
+const confirmDelete = () => {
+  if (deleteConfirmCallback.value) {
+    deleteConfirmCallback.value()
   }
 }
 
@@ -503,9 +601,10 @@ const createSubCategory = async () => {
     })
     cancelAddSubCategory()
     await loadCategories()
+    showSnackbar('Sous-catégorie créée avec succès', 'success')
   } catch (error: any) {
     console.error('Error creating subcategory:', error)
-    alert(error.response?.data?.error || 'Erreur lors de la création de la sous-catégorie')
+    showSnackbar(error.response?.data?.error || 'Erreur lors de la création de la sous-catégorie', 'error')
   } finally {
     loading.value = false
   }
@@ -524,29 +623,39 @@ const updateSubCategory = async () => {
 
   try {
     loading.value = true
-    // Note: L'API de mise à jour n'existe peut-être pas encore, à implémenter si nécessaire
-    alert('La fonctionnalité de modification sera disponible prochainement')
+    await subCategoriesApi.update(editingSubCategory.value.id, {
+      name: editingSubCategory.value.name,
+      description: editingSubCategory.value.description || undefined,
+      categoryId: editingSubCategory.value.categoryId,
+    })
     showEditSubCategoryDialog.value = false
     await loadCategories()
-  } catch (error) {
+    showSnackbar('Sous-catégorie modifiée avec succès', 'success')
+  } catch (error: any) {
     console.error('Error updating subcategory:', error)
+    showSnackbar(error.response?.data?.error || 'Erreur lors de la modification de la sous-catégorie', 'error')
   } finally {
     loading.value = false
   }
 }
 
 const deleteSubCategory = async (id: string) => {
-  if (!confirm('Êtes-vous sûr de vouloir supprimer cette sous-catégorie ?')) {
-    return
+  deleteConfirmMessage.value = 'Êtes-vous sûr de vouloir supprimer cette sous-catégorie ? Les produits associés perdront leur sous-catégorie.'
+  deleteConfirmCallback.value = async () => {
+    try {
+      loading.value = true
+      await subCategoriesApi.delete(id)
+      await loadCategories()
+      showSnackbar('Sous-catégorie supprimée avec succès', 'success')
+    } catch (error: any) {
+      console.error('Error deleting subcategory:', error)
+      showSnackbar(error.response?.data?.error || 'Erreur lors de la suppression de la sous-catégorie', 'error')
+    } finally {
+      loading.value = false
+      showDeleteConfirmDialog.value = false
+    }
   }
-
-  try {
-    // Note: L'API de suppression n'existe peut-être pas encore, à implémenter si nécessaire
-    alert('La fonctionnalité de suppression sera disponible prochainement')
-    await loadCategories()
-  } catch (error) {
-    console.error('Error deleting subcategory:', error)
-  }
+  showDeleteConfirmDialog.value = true
 }
 
 onMounted(() => {

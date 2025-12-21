@@ -14,6 +14,7 @@ model Category {
   id          String       @id @default(uuid())
   name        String       @unique
   description String?
+  fieldConfig Json?        // Configuration JSON des champs dynamiques pour cette catégorie
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 

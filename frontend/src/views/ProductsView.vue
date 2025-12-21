@@ -660,6 +660,57 @@
       </v-card>
     </v-dialog>
   </div>
+
+  <!-- Snackbar pour les notifications -->
+  <v-snackbar
+    v-model="snackbar.show"
+    :color="snackbar.color"
+    :timeout="snackbar.timeout"
+    location="top right"
+  >
+    <div class="d-flex align-center">
+      <v-icon class="mr-2">{{ snackbar.icon }}</v-icon>
+      <span>{{ snackbar.message }}</span>
+    </div>
+    <template v-slot:actions>
+      <v-btn
+        variant="text"
+        @click="snackbar.show = false"
+      >
+        Fermer
+      </v-btn>
+    </template>
+  </v-snackbar>
+
+  <!-- Dialog de confirmation pour la suppression -->
+  <v-dialog v-model="showDeleteConfirmDialog" max-width="500" persistent>
+    <v-card>
+      <v-card-title class="text-h6 bg-error text-white pa-4">
+        <v-icon class="mr-2">mdi-alert</v-icon>
+        Confirmer la suppression
+      </v-card-title>
+      <v-card-text class="pa-4">
+        <p class="text-body-1">{{ deleteConfirmMessage }}</p>
+      </v-card-text>
+      <v-card-actions class="pa-4">
+        <v-spacer></v-spacer>
+        <v-btn
+          color="grey-darken-1"
+          variant="outlined"
+          @click="showDeleteConfirmDialog = false"
+        >
+          Annuler
+        </v-btn>
+        <v-btn
+          color="error"
+          @click="confirmDelete"
+          :loading="loading"
+        >
+          Supprimer
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 </template>
 
 <script setup lang="ts">
@@ -710,6 +761,32 @@ const newProduct = ref({
 })
 const createForm = ref<any>(null)
 const editForm = ref<any>(null)
+
+// Snackbar
+const snackbar = ref({
+  show: false,
+  message: '',
+  color: 'success',
+  timeout: 4000,
+  icon: 'mdi-check-circle',
+})
+
+// Dialog de confirmation
+const showDeleteConfirmDialog = ref(false)
+const deleteConfirmMessage = ref('')
+const deleteConfirmCallback = ref<(() => void) | null>(null)
+
+const showSnackbar = (message: string, color: 'success' | 'error' | 'warning' | 'info' = 'success') => {
+  snackbar.value = {
+    show: true,
+    message,
+    color,
+    timeout: color === 'error' ? 6000 : 4000,
+    icon: color === 'success' ? 'mdi-check-circle' : 
+          color === 'error' ? 'mdi-alert-circle' : 
+          color === 'warning' ? 'mdi-alert' : 'mdi-information',
+  }
+}
 
 // Options pour les selects (déclarées en premier pour être utilisées dans categoryFieldsConfig)
 const storageOptions = [
@@ -773,6 +850,13 @@ const dynamicFields = computed(() => {
   const selectedCategory = categories.value.find(cat => cat.id === newProduct.value.categoryId)
   if (!selectedCategory) return defaultFields
   
+  // Utiliser fieldConfig depuis la base de données si disponible
+  // Sinon, utiliser la configuration codée en dur (fallback)
+  if (selectedCategory.fieldConfig && Array.isArray(selectedCategory.fieldConfig) && selectedCategory.fieldConfig.length > 0) {
+    return selectedCategory.fieldConfig
+  }
+  
+  // Fallback vers la configuration codée en dur
   return categoryFieldsConfig[selectedCategory.name] || defaultFields
 })
 
@@ -783,6 +867,13 @@ const dynamicFieldsEdit = computed(() => {
   const selectedCategory = categories.value.find(cat => cat.id === editingProduct.value!.categoryId)
   if (!selectedCategory) return defaultFields
   
+  // Utiliser fieldConfig depuis la base de données si disponible
+  // Sinon, utiliser la configuration codée en dur (fallback)
+  if (selectedCategory.fieldConfig && Array.isArray(selectedCategory.fieldConfig) && selectedCategory.fieldConfig.length > 0) {
+    return selectedCategory.fieldConfig
+  }
+  
+  // Fallback vers la configuration codée en dur
   return categoryFieldsConfig[selectedCategory.name] || defaultFields
 })
 
@@ -900,8 +991,10 @@ const createProduct = async () => {
     }
     showCreateDialog.value = false
     loadProducts()
-  } catch (error) {
+    showSnackbar('Produit créé avec succès', 'success')
+  } catch (error: any) {
     console.error('Error creating product:', error)
+    showSnackbar(error.response?.data?.error || 'Erreur lors de la création du produit', 'error')
   } finally {
     loading.value = false
   }
@@ -967,21 +1060,37 @@ const updateProduct = async () => {
     showEditDialog.value = false
     editingProduct.value = null
     loadProducts()
-  } catch (error) {
+    showSnackbar('Produit modifié avec succès', 'success')
+  } catch (error: any) {
     console.error('Error updating product:', error)
+    showSnackbar(error.response?.data?.error || 'Erreur lors de la modification du produit', 'error')
   } finally {
     loading.value = false
   }
 }
 
 const deleteProduct = async (id: string) => {
-  if (!confirm('Êtes-vous sûr de vouloir supprimer ce produit ?')) return
+  deleteConfirmMessage.value = 'Êtes-vous sûr de vouloir supprimer ce produit ?'
+  deleteConfirmCallback.value = async () => {
+    try {
+      loading.value = true
+      await productsApi.delete(id)
+      loadProducts()
+      showSnackbar('Produit supprimé avec succès', 'success')
+    } catch (error: any) {
+      console.error('Error deleting product:', error)
+      showSnackbar(error.response?.data?.error || 'Erreur lors de la suppression du produit', 'error')
+    } finally {
+      loading.value = false
+      showDeleteConfirmDialog.value = false
+    }
+  }
+  showDeleteConfirmDialog.value = true
+}
 
-  try {
-    await productsApi.delete(id)
-    loadProducts()
-  } catch (error) {
-    console.error('Error deleting product:', error)
+const confirmDelete = () => {
+  if (deleteConfirmCallback.value) {
+    deleteConfirmCallback.value()
   }
 }
 

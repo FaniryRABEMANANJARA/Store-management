@@ -52,6 +52,7 @@ export interface Category {
   id: string
   name: string
   description?: string
+  fieldConfig?: any[] // Configuration JSON des champs dynamiques
   createdAt: string
   updatedAt: string
   subCategories?: SubCategory[]
@@ -152,8 +153,12 @@ export interface Profit {
 // API functions
 export const categoriesApi = {
   getAll: () => apiClient.get<Category[]>('/categories'),
-  create: (data: { name: string; description?: string }) =>
+  getById: (id: string) => apiClient.get<Category>(`/categories/${id}`),
+  create: (data: { name: string; description?: string; fieldConfig?: any[] }) =>
     apiClient.post<Category>('/categories', data),
+  update: (id: string, data: { name: string; description?: string; fieldConfig?: any[] }) =>
+    apiClient.put<Category>(`/categories/${id}`, data),
+  delete: (id: string) => apiClient.delete(`/categories/${id}`),
 }
 
 export const subCategoriesApi = {
@@ -161,8 +166,12 @@ export const subCategoriesApi = {
     const params = categoryId ? { params: { categoryId } } : {}
     return apiClient.get<SubCategory[]>('/subcategories', params)
   },
+  getById: (id: string) => apiClient.get<SubCategory>(`/subcategories/${id}`),
   create: (data: { name: string; description?: string; categoryId: string }) =>
     apiClient.post<SubCategory>('/subcategories', data),
+  update: (id: string, data: { name: string; description?: string; categoryId?: string }) =>
+    apiClient.put<SubCategory>(`/subcategories/${id}`, data),
+  delete: (id: string) => apiClient.delete(`/subcategories/${id}`),
 }
 
 export const productsApi = {

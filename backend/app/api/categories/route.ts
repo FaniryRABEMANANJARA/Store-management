@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
   try {
     const prisma = getPrisma()
     const body = await request.json()
-    const { name, description } = body
+    const { name, description, fieldConfig } = body
 
     if (!name) {
       return NextResponse.json(
@@ -58,6 +58,7 @@ export async function POST(request: NextRequest) {
       data: {
         name,
         description: description || null,
+        fieldConfig: fieldConfig || null,
       },
       include: {
         subCategories: true,

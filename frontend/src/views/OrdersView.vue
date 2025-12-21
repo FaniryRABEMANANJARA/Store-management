@@ -301,6 +301,87 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- Snackbar pour les notifications -->
+    <v-snackbar
+      v-model="snackbar.show"
+      :color="snackbar.color"
+      :timeout="snackbar.timeout"
+      location="top right"
+    >
+      <div class="d-flex align-center">
+        <v-icon class="mr-2">{{ snackbar.icon }}</v-icon>
+        <span>{{ snackbar.message }}</span>
+      </div>
+      <template v-slot:actions>
+        <v-btn
+          variant="text"
+          @click="snackbar.show = false"
+        >
+          Fermer
+        </v-btn>
+      </template>
+    </v-snackbar>
+
+    <!-- Dialog de confirmation pour la suppression -->
+    <v-dialog v-model="showDeleteConfirmDialog" max-width="500" persistent>
+      <v-card>
+        <v-card-title class="text-h6 bg-error text-white pa-4">
+          <v-icon class="mr-2">mdi-alert</v-icon>
+          Confirmer la suppression
+        </v-card-title>
+        <v-card-text class="pa-4">
+          <p class="text-body-1">{{ deleteConfirmMessage }}</p>
+        </v-card-text>
+        <v-card-actions class="pa-4">
+          <v-spacer></v-spacer>
+          <v-btn
+            color="grey-darken-1"
+            variant="outlined"
+            @click="showDeleteConfirmDialog = false"
+          >
+            Annuler
+          </v-btn>
+          <v-btn
+            color="error"
+            @click="confirmDelete"
+            :loading="loading"
+          >
+            Supprimer
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Dialog de confirmation pour la conversion -->
+    <v-dialog v-model="showConvertConfirmDialog" max-width="500" persistent>
+      <v-card>
+        <v-card-title class="text-h6 bg-info text-white pa-4">
+          <v-icon class="mr-2">mdi-information</v-icon>
+          Confirmer la conversion
+        </v-card-title>
+        <v-card-text class="pa-4">
+          <p class="text-body-1">{{ convertConfirmMessage }}</p>
+        </v-card-text>
+        <v-card-actions class="pa-4">
+          <v-spacer></v-spacer>
+          <v-btn
+            color="grey-darken-1"
+            variant="outlined"
+            @click="showConvertConfirmDialog = false"
+          >
+            Annuler
+          </v-btn>
+          <v-btn
+            color="info"
+            @click="confirmConvert"
+            :loading="loading"
+          >
+            Convertir
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -325,6 +406,35 @@ const loading = ref(false)
 const orderForm = ref<any>(null)
 const editOrderForm = ref<any>(null)
 const editingOrder = ref<Order | null>(null)
+
+// Snackbar
+const snackbar = ref({
+  show: false,
+  message: '',
+  color: 'success',
+  timeout: 4000,
+  icon: 'mdi-check-circle',
+})
+
+// Dialog de confirmation
+const showDeleteConfirmDialog = ref(false)
+const showConvertConfirmDialog = ref(false)
+const deleteConfirmMessage = ref('')
+const convertConfirmMessage = ref('')
+const deleteConfirmCallback = ref<(() => void) | null>(null)
+const convertConfirmCallback = ref<(() => void) | null>(null)
+
+const showSnackbar = (message: string, color: 'success' | 'error' | 'warning' | 'info' = 'success') => {
+  snackbar.value = {
+    show: true,
+    message,
+    color,
+    timeout: color === 'error' ? 6000 : 4000,
+    icon: color === 'success' ? 'mdi-check-circle' : 
+          color === 'error' ? 'mdi-alert-circle' : 
+          color === 'warning' ? 'mdi-alert' : 'mdi-information',
+  }
+}
 
 const newOrder = ref({
   productId: '',
@@ -384,10 +494,11 @@ const createOrder = async () => {
     }
     showCreateDialog.value = false
     loadData()
+    showSnackbar('Commande créée avec succès', 'success')
   } catch (error: any) {
     console.error('Error creating order:', error)
     const errorMessage = error.response?.data?.details || error.response?.data?.error || 'Erreur lors de la création de la commande'
-    alert(errorMessage)
+    showSnackbar(errorMessage, 'error')
   } finally {
     loading.value = false
   }
@@ -410,50 +521,73 @@ const updateOrder = async () => {
     showEditDialog.value = false
     editingOrder.value = null
     loadData()
-  } catch (error) {
+    showSnackbar('Commande modifiée avec succès', 'success')
+  } catch (error: any) {
     console.error('Error updating order:', error)
+    showSnackbar(error.response?.data?.error || 'Erreur lors de la modification de la commande', 'error')
   } finally {
     loading.value = false
   }
 }
 
 const deleteOrder = async (id: string) => {
-  if (!confirm('Êtes-vous sûr de vouloir supprimer cette commande ?')) {
-    return
+  deleteConfirmMessage.value = 'Êtes-vous sûr de vouloir supprimer cette commande ?'
+  deleteConfirmCallback.value = async () => {
+    try {
+      loading.value = true
+      await ordersApi.delete(id)
+      loadData()
+      showSnackbar('Commande supprimée avec succès', 'success')
+    } catch (error: any) {
+      console.error('Error deleting order:', error)
+      showSnackbar(error.response?.data?.error || 'Erreur lors de la suppression de la commande', 'error')
+    } finally {
+      loading.value = false
+      showDeleteConfirmDialog.value = false
+    }
   }
+  showDeleteConfirmDialog.value = true
+}
 
-  try {
-    await ordersApi.delete(id)
-    loadData()
-  } catch (error) {
-    console.error('Error deleting order:', error)
+const confirmDelete = () => {
+  if (deleteConfirmCallback.value) {
+    deleteConfirmCallback.value()
   }
 }
 
 const convertToPurchase = async (order: Order) => {
-  if (!confirm('Voulez-vous convertir cette commande en achat ?')) {
-    return
+  convertConfirmMessage.value = 'Voulez-vous convertir cette commande en achat ?'
+  convertConfirmCallback.value = async () => {
+    try {
+      loading.value = true
+      // Créer un achat à partir de la commande
+      await purchasesApi.create({
+        productId: order.productId,
+        quantity: order.quantity,
+        priceRMB: order.priceRMB,
+        exchangeRate: order.exchangeRate,
+        purchaseDate: new Date().toISOString().split('T')[0],
+      })
+      
+      // Marquer la commande comme complétée
+      await ordersApi.update(order.id, { ...order, status: 'completed' })
+      
+      loadData()
+      showSnackbar('Commande convertie en achat avec succès', 'success')
+    } catch (error: any) {
+      console.error('Error converting order to purchase:', error)
+      showSnackbar(error.response?.data?.error || 'Erreur lors de la conversion de la commande', 'error')
+    } finally {
+      loading.value = false
+      showConvertConfirmDialog.value = false
+    }
   }
+  showConvertConfirmDialog.value = true
+}
 
-  try {
-    loading.value = true
-    // Créer un achat à partir de la commande
-    await purchasesApi.create({
-      productId: order.productId,
-      quantity: order.quantity,
-      priceRMB: order.priceRMB,
-      exchangeRate: order.exchangeRate,
-      purchaseDate: new Date().toISOString().split('T')[0],
-    })
-    
-    // Marquer la commande comme complétée
-    await ordersApi.update(order.id, { ...order, status: 'completed' })
-    
-    loadData()
-  } catch (error) {
-    console.error('Error converting order to purchase:', error)
-  } finally {
-    loading.value = false
+const confirmConvert = () => {
+  if (convertConfirmCallback.value) {
+    convertConfirmCallback.value()
   }
 }
 
