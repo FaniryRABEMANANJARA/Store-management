@@ -1,5 +1,9 @@
 frontend
 frontend/**
+frontend/dist
+frontend/node_modules
 node_modules
 .git
+*.md
+README.md
 
