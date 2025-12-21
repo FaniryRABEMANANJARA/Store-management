@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getPrisma } from '@/lib/prisma'
+import { handleCORS, corsHeaders } from '@/lib/cors'
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic'
+
+// Gérer les requêtes OPTIONS (preflight CORS)
+export async function OPTIONS() {
+  return handleCORS()
+}
 
 // GET /api/products - Récupérer tous les produits
 export async function GET() {
@@ -19,7 +25,7 @@ export async function GET() {
         createdAt: 'desc',
       },
     })
-    return NextResponse.json(products)
+    return NextResponse.json(products, { headers: corsHeaders() })
   } catch (error: any) {
     console.error('Error fetching products:', error)
     return NextResponse.json(
@@ -27,7 +33,7 @@ export async function GET() {
         error: 'Failed to fetch products',
         details: process.env.NODE_ENV === 'development' ? error.message : undefined
       },
-      { status: 500 }
+      { status: 500, headers: corsHeaders() }
     )
   }
 }
@@ -57,7 +63,7 @@ export async function POST(request: NextRequest) {
     if (!name || !categoryId) {
       return NextResponse.json(
         { error: 'Name and categoryId are required' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders() }
       )
     }
 
@@ -84,12 +90,12 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    return NextResponse.json(product, { status: 201 })
+    return NextResponse.json(product, { status: 201, headers: corsHeaders() })
   } catch (error) {
     console.error('Error creating product:', error)
     return NextResponse.json(
       { error: 'Failed to create product' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders() }
     )
   }
 }

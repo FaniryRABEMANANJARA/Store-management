@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { handleCORS, corsHeaders } from '@/lib/cors'
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic'
+
+// Gérer les requêtes OPTIONS (preflight CORS)
+export async function OPTIONS() {
+  return handleCORS()
+}
 
 // GET /api/purchases - Récupérer tous les achats
 export async function GET() {
@@ -15,12 +21,12 @@ export async function GET() {
         purchaseDate: 'desc',
       },
     })
-    return NextResponse.json(purchases)
+    return NextResponse.json(purchases, { headers: corsHeaders() })
   } catch (error) {
     console.error('Error fetching purchases:', error)
     return NextResponse.json(
       { error: 'Failed to fetch purchases' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders() }
     )
   }
 }
@@ -32,10 +38,10 @@ export async function POST(request: NextRequest) {
     const { productId, quantity, priceRMB, exchangeRate, purchaseDate } = body
 
     if (!productId || !quantity || !priceRMB || !exchangeRate) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      )
+    return NextResponse.json(
+      { error: 'Missing required fields' },
+      { status: 400, headers: corsHeaders() }
+    )
     }
 
     // Calculer le coût total en MGA
@@ -55,12 +61,12 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    return NextResponse.json(purchase, { status: 201 })
+    return NextResponse.json(purchase, { status: 201, headers: corsHeaders() })
   } catch (error) {
     console.error('Error creating purchase:', error)
     return NextResponse.json(
       { error: 'Failed to create purchase' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders() }
     )
   }
 }
