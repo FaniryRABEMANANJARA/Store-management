@@ -724,7 +724,7 @@ const showCreateDialog = ref(false)
 const showDetailsDialog = ref(false)
 const showEditDialog = ref(false)
 const loading = ref(false)
-const selectedProduct = ref<Product | null>(null)
+const  selectedProduct = ref<Product | null>(null)
 const productDetails = ref<any>(null)
 const editingProduct = ref<{
   id: string
