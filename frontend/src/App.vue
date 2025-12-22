@@ -106,10 +106,14 @@
       </v-main>
     </template>
   </v-app>
+  
+  <!-- Vercel Analytics -->
+  <Analytics />
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { Analytics } from '@vercel/analytics/vue'
 import { useAuth } from './composables/useAuth'
 
 const drawer = ref(true)
