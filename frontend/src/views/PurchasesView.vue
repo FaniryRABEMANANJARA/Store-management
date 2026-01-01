@@ -40,6 +40,20 @@
               <template v-slot:item.purchaseDate="{ item }">
                 {{ formatDate(item.purchaseDate) }}
               </template>
+              <template v-slot:item.actions="{ item }">
+                <v-btn
+                  icon="mdi-information-outline"
+                  size="small"
+                  color="info"
+                  variant="text"
+                  @click="showPurchaseDetails(item)"
+                >
+                  <v-icon>mdi-information-outline</v-icon>
+                  <v-tooltip activator="parent" location="top">
+                    Voir les détails du coût
+                  </v-tooltip>
+                </v-btn>
+              </template>
             </v-data-table>
           </v-card-text>
         </v-card>
@@ -498,6 +512,132 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- Dialog pour afficher les détails du coût total estimé -->
+    <v-dialog v-model="showDetailsDialog" max-width="600" persistent>
+      <v-card>
+        <v-card-title class="text-white bg-info pa-6">
+          <v-icon class="mr-3" size="28">mdi-information</v-icon>
+          <span class="text-h5 font-weight-bold">Détails du coût total estimé</span>
+        </v-card-title>
+        <v-card-text class="pa-6">
+          <div v-if="selectedPurchase">
+            <v-row>
+              <v-col cols="12">
+                <v-card variant="outlined" class="mb-4">
+                  <v-card-title class="text-subtitle-1">
+                    <v-icon class="mr-2" color="primary">mdi-package-variant</v-icon>
+                    Informations du produit
+                  </v-card-title>
+                  <v-card-text>
+                    <div class="d-flex align-center mb-2">
+                      <strong class="mr-2">Produit:</strong>
+                      <span>{{ selectedPurchase.product?.name || 'N/A' }}</span>
+                    </div>
+                    <div class="d-flex align-center">
+                      <strong class="mr-2">Quantité:</strong>
+                      <span>{{ selectedPurchase.quantity }}</span>
+                    </div>
+                  </v-card-text>
+                </v-card>
+              </v-col>
+              
+              <v-col cols="12">
+                <v-card color="success" variant="tonal">
+                  <v-card-title class="text-subtitle-1">
+                    <v-icon class="mr-2" color="success">mdi-calculator</v-icon>
+                    Calcul du coût total
+                  </v-card-title>
+                  <v-card-text>
+                    <div class="mb-3">
+                      <div class="d-flex align-center justify-space-between mb-2">
+                        <div class="d-flex align-center">
+                          <v-icon class="mr-2" color="orange" size="small">mdi-currency-cny</v-icon>
+                          <span>Prix d'achat (RMB):</span>
+                        </div>
+                        <span class="text-h6 font-weight-bold">
+                          {{ selectedPurchase.priceRMB.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} ¥
+                        </span>
+                      </div>
+                      
+                      <div class="d-flex align-center justify-space-between mb-2">
+                        <div class="d-flex align-center">
+                          <v-icon class="mr-2" color="info" size="small">mdi-currency-exchange</v-icon>
+                          <span>Taux de change:</span>
+                        </div>
+                        <span class="text-h6 font-weight-bold">
+                          {{ selectedPurchase.exchangeRate.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                        </span>
+                      </div>
+                      
+                      <div class="d-flex align-center justify-space-between mb-2">
+                        <div class="d-flex align-center">
+                          <v-icon class="mr-2" color="primary" size="small">mdi-numeric</v-icon>
+                          <span>Quantité:</span>
+                        </div>
+                        <span class="text-h6 font-weight-bold">
+                          {{ selectedPurchase.quantity }}
+                        </span>
+                      </div>
+                      
+                      <v-divider class="my-3"></v-divider>
+                      
+                      <div class="text-center mb-3">
+                        <div class="text-caption text-medium-emphasis mb-2">Formule de calcul:</div>
+                        <div class="text-body-1 font-weight-medium">
+                          Prix (RMB) × Taux de change × Quantité = Coût total (MGA)
+                        </div>
+                        <div class="text-body-2 mt-2">
+                          {{ selectedPurchase.priceRMB.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} ¥
+                          × {{ selectedPurchase.exchangeRate.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                          × {{ selectedPurchase.quantity }}
+                          = {{ formatCurrency(selectedPurchase.totalCostMGA) }}
+                        </div>
+                      </div>
+                      
+                      <v-divider class="my-3"></v-divider>
+                      
+                      <div class="d-flex align-center justify-space-between">
+                        <div class="d-flex align-center">
+                          <v-icon class="mr-2" color="success" size="large">mdi-cash</v-icon>
+                          <span class="text-h6 font-weight-bold">Coût total estimé:</span>
+                        </div>
+                        <span class="text-h4 font-weight-bold text-success">
+                          {{ formatCurrency(selectedPurchase.totalCostMGA) }}
+                        </span>
+                      </div>
+                    </div>
+                  </v-card-text>
+                </v-card>
+              </v-col>
+              
+              <v-col cols="12">
+                <v-card variant="outlined">
+                  <v-card-text>
+                    <div class="d-flex align-center mb-2">
+                      <v-icon class="mr-2" color="grey" size="small">mdi-calendar</v-icon>
+                      <strong class="mr-2">Date d'achat:</strong>
+                      <span>{{ formatDate(selectedPurchase.purchaseDate) }}</span>
+                    </div>
+                  </v-card-text>
+                </v-card>
+              </v-col>
+            </v-row>
+          </div>
+        </v-card-text>
+        <v-divider></v-divider>
+        <v-card-actions class="pa-4">
+          <v-spacer></v-spacer>
+          <v-btn
+            color="info"
+            prepend-icon="mdi-close"
+            @click="showDetailsDialog = false"
+          >
+            Fermer
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -519,6 +659,8 @@ const activeExchangeRate = ref<ExchangeRate | null>(null)
 const showDialog = ref(false)
 const showOrderDialog = ref(false)
 const showOrderModeDialog = ref(false)
+const showDetailsDialog = ref(false)
+const selectedPurchase = ref<Purchase | null>(null)
 const orderInputMode = ref<'price' | 'total'>('price')
 const loading = ref(false)
 const purchaseForm = ref<any>(null)
@@ -548,6 +690,7 @@ const headers = [
   { title: 'Taux de change', key: 'exchangeRate' },
   { title: 'Coût total (MGA)', key: 'totalCostMGA' },
   { title: 'Date', key: 'purchaseDate' },
+  { title: 'Actions', key: 'actions', sortable: false, width: '100px' },
 ]
 
 const loadData = async () => {
@@ -742,6 +885,11 @@ const calculateTotalCost = () => {
 
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString('fr-FR')
+}
+
+const showPurchaseDetails = (purchase: Purchase) => {
+  selectedPurchase.value = purchase
+  showDetailsDialog.value = true
 }
 
 onMounted(() => {
