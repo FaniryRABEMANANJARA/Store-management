@@ -702,6 +702,106 @@
                 </v-card>
               </v-col>
               
+              <!-- Marge de bénéfice -->
+              <v-col cols="12">
+                <v-card color="primary" variant="tonal">
+                  <v-card-title class="text-subtitle-1">
+                    <v-icon class="mr-2" color="primary">mdi-chart-line</v-icon>
+                    Analyse de rentabilité
+                    <v-progress-circular
+                      v-if="loadingProfit"
+                      indeterminate
+                      size="20"
+                      width="2"
+                      class="ml-2"
+                    ></v-progress-circular>
+                  </v-card-title>
+                  <v-card-text v-if="loadingProfit" class="text-center pa-4">
+                    <div class="text-body-2 text-medium-emphasis">Chargement des données de rentabilité...</div>
+                  </v-card-text>
+                  <v-card-text v-else-if="productProfit">
+                    <v-row>
+                      <v-col cols="12" md="6">
+                        <div class="d-flex align-center justify-space-between mb-3">
+                          <div class="d-flex align-center">
+                            <v-icon class="mr-2" color="success" size="small">mdi-cash-multiple</v-icon>
+                            <span>Revenu total (MGA):</span>
+                          </div>
+                          <span class="text-h6 font-weight-bold text-success">
+                            {{ formatCurrency(productProfit.totalRevenue || 0) }}
+                          </span>
+                        </div>
+                        
+                        <div class="d-flex align-center justify-space-between mb-3">
+                          <div class="d-flex align-center">
+                            <v-icon class="mr-2" color="orange" size="small">mdi-cash-minus</v-icon>
+                            <span>Coût total (MGA):</span>
+                          </div>
+                          <span class="text-h6 font-weight-bold text-orange">
+                            {{ formatCurrency(productProfit.totalCost || selectedPurchase.totalCostMGA) }}
+                          </span>
+                        </div>
+                        
+                        <div class="d-flex align-center justify-space-between">
+                          <div class="d-flex align-center">
+                            <v-icon class="mr-2" :color="(productProfit.profit || 0) >= 0 ? 'success' : 'error'" size="small">
+                              {{ (productProfit.profit || 0) >= 0 ? 'mdi-trending-up' : 'mdi-trending-down' }}
+                            </v-icon>
+                            <span>Bénéfice/Perte (MGA):</span>
+                          </div>
+                          <span class="text-h6 font-weight-bold" :class="(productProfit.profit || 0) >= 0 ? 'text-success' : 'text-error'">
+                            {{ formatCurrency(productProfit.profit || 0) }}
+                          </span>
+                        </div>
+                      </v-col>
+                      
+                      <v-col cols="12" md="6">
+                        <v-card variant="outlined" class="mb-3">
+                          <v-card-text>
+                            <div class="text-caption text-medium-emphasis mb-2">Marge de bénéfice</div>
+                            <div class="d-flex align-center justify-space-between mb-2">
+                              <span>Pourcentage:</span>
+                              <span class="text-h5 font-weight-bold" :class="(productProfit.profitMargin || 0) >= 0 ? 'text-success' : 'text-error'">
+                                {{ (productProfit.profitMargin || 0).toFixed(2) }}%
+                              </span>
+                            </div>
+                            <div class="text-caption text-medium-emphasis">
+                              {{ productProfit.profitMargin >= 0 ? 'Marge positive' : 'Marge négative' }}
+                            </div>
+                          </v-card-text>
+                        </v-card>
+                        
+                        <v-card variant="outlined">
+                          <v-card-text>
+                            <div class="text-caption text-medium-emphasis mb-2">Statistiques produit</div>
+                            <div class="d-flex align-center justify-space-between mb-1">
+                              <span class="text-caption">Acheté:</span>
+                              <span class="font-weight-bold">{{ productProfit.totalPurchased || 0 }}</span>
+                            </div>
+                            <div class="d-flex align-center justify-space-between mb-1">
+                              <span class="text-caption">Vendu:</span>
+                              <span class="font-weight-bold">{{ productProfit.totalSold || 0 }}</span>
+                            </div>
+                            <div class="d-flex align-center justify-space-between">
+                              <span class="text-caption">Stock:</span>
+                              <span class="font-weight-bold" :class="(productProfit.stock || 0) > 0 ? 'text-success' : 'text-warning'">
+                                {{ productProfit.stock || 0 }}
+                              </span>
+                            </div>
+                          </v-card-text>
+                        </v-card>
+                      </v-col>
+                    </v-row>
+                  </v-card-text>
+                  <v-card-text v-else class="text-center pa-4">
+                    <div class="text-body-2 text-medium-emphasis">
+                      <v-icon class="mr-2" color="grey">mdi-information</v-icon>
+                      Aucune donnée de vente disponible pour calculer la marge de bénéfice
+                    </div>
+                  </v-card-text>
+                </v-card>
+              </v-col>
+              
               <!-- Informations de date et métadonnées -->
               <v-col cols="12">
                 <v-card variant="outlined">
@@ -773,6 +873,8 @@ const showOrderDialog = ref(false)
 const showOrderModeDialog = ref(false)
 const showDetailsDialog = ref(false)
 const selectedPurchase = ref<Purchase | null>(null)
+const productProfit = ref<any>(null)
+const loadingProfit = ref(false)
 const orderInputMode = ref<'price' | 'total'>('price')
 const loading = ref(false)
 const purchaseForm = ref<any>(null)
@@ -1009,9 +1111,32 @@ const formatDateTime = (dateString: string) => {
   })
 }
 
-const showPurchaseDetails = (purchase: Purchase) => {
+const showPurchaseDetails = async (purchase: Purchase) => {
   selectedPurchase.value = purchase
   showDetailsDialog.value = true
+  productProfit.value = null
+  loadingProfit.value = true
+  
+  // Charger les données de profit du produit si disponible
+  if (purchase.productId) {
+    try {
+      const profitRes = await productsApi.getProfit(purchase.productId)
+      const profit = profitRes.data
+      // Calculer la marge bénéficiaire
+      const profitMargin = profit.totalRevenue > 0
+        ? ((profit.profit / profit.totalRevenue) * 100)
+        : 0
+      productProfit.value = {
+        ...profit,
+        profitMargin
+      }
+    } catch (error) {
+      console.error('Error loading product profit:', error)
+      // Continuer même si le profit ne peut pas être chargé
+    } finally {
+      loadingProfit.value = false
+    }
+  }
 }
 
 onMounted(() => {
