@@ -514,15 +514,16 @@
     </v-dialog>
 
     <!-- Dialog pour afficher les détails du coût total estimé -->
-    <v-dialog v-model="showDetailsDialog" max-width="600" persistent>
+    <v-dialog v-model="showDetailsDialog" max-width="800" persistent scrollable>
       <v-card>
         <v-card-title class="text-white bg-info pa-6">
           <v-icon class="mr-3" size="28">mdi-information</v-icon>
-          <span class="text-h5 font-weight-bold">Détails du coût total estimé</span>
+          <span class="text-h5 font-weight-bold">Détails complets de l'achat</span>
         </v-card-title>
         <v-card-text class="pa-6">
           <div v-if="selectedPurchase">
             <v-row>
+              <!-- Informations du produit -->
               <v-col cols="12">
                 <v-card variant="outlined" class="mb-4">
                   <v-card-title class="text-subtitle-1">
@@ -530,18 +531,73 @@
                     Informations du produit
                   </v-card-title>
                   <v-card-text>
-                    <div class="d-flex align-center mb-2">
-                      <strong class="mr-2">Produit:</strong>
-                      <span>{{ selectedPurchase.product?.name || 'N/A' }}</span>
-                    </div>
-                    <div class="d-flex align-center">
-                      <strong class="mr-2">Quantité:</strong>
-                      <span>{{ selectedPurchase.quantity }}</span>
-                    </div>
+                    <v-row>
+                      <v-col cols="12" md="6">
+                        <div class="d-flex align-center mb-2">
+                          <v-icon class="mr-2" color="primary" size="small">mdi-tag</v-icon>
+                          <strong class="mr-2">Nom:</strong>
+                          <span>{{ selectedPurchase.product?.name || 'N/A' }}</span>
+                        </div>
+                        <div v-if="selectedPurchase.product?.description" class="d-flex align-center mb-2">
+                          <v-icon class="mr-2" color="grey" size="small">mdi-text-box</v-icon>
+                          <strong class="mr-2">Description:</strong>
+                          <span>{{ selectedPurchase.product.description }}</span>
+                        </div>
+                        <div class="d-flex align-center mb-2">
+                          <v-icon class="mr-2" color="primary" size="small">mdi-numeric</v-icon>
+                          <strong class="mr-2">Quantité achetée:</strong>
+                          <span class="text-h6 font-weight-bold">{{ selectedPurchase.quantity }}</span>
+                        </div>
+                      </v-col>
+                      <v-col cols="12" md="6">
+                        <!-- Attributs spécifiques du produit -->
+                        <div v-if="selectedPurchase.product?.model" class="d-flex align-center mb-2">
+                          <v-icon class="mr-2" color="info" size="small">mdi-cellphone-link</v-icon>
+                          <strong class="mr-2">Modèle:</strong>
+                          <span>{{ selectedPurchase.product.model }}</span>
+                        </div>
+                        <div v-if="selectedPurchase.product?.color" class="d-flex align-center mb-2">
+                          <v-icon class="mr-2" color="purple" size="small">mdi-palette</v-icon>
+                          <strong class="mr-2">Couleur:</strong>
+                          <span>{{ selectedPurchase.product.color }}</span>
+                        </div>
+                        <div v-if="selectedPurchase.product?.storage" class="d-flex align-center mb-2">
+                          <v-icon class="mr-2" color="orange" size="small">mdi-harddisk</v-icon>
+                          <strong class="mr-2">Stockage:</strong>
+                          <span>{{ selectedPurchase.product.storage }}</span>
+                        </div>
+                        <div v-if="selectedPurchase.product?.ram" class="d-flex align-center mb-2">
+                          <v-icon class="mr-2" color="blue" size="small">mdi-memory</v-icon>
+                          <strong class="mr-2">RAM:</strong>
+                          <span>{{ selectedPurchase.product.ram }}</span>
+                        </div>
+                        <div v-if="selectedPurchase.product?.processor" class="d-flex align-center mb-2">
+                          <v-icon class="mr-2" color="green" size="small">mdi-chip</v-icon>
+                          <strong class="mr-2">Processeur:</strong>
+                          <span>{{ selectedPurchase.product.processor }}</span>
+                        </div>
+                        <div v-if="selectedPurchase.product?.screenSize" class="d-flex align-center mb-2">
+                          <v-icon class="mr-2" color="teal" size="small">mdi-monitor</v-icon>
+                          <strong class="mr-2">Taille d'écran:</strong>
+                          <span>{{ selectedPurchase.product.screenSize }}</span>
+                        </div>
+                        <div v-if="selectedPurchase.product?.battery" class="d-flex align-center mb-2">
+                          <v-icon class="mr-2" color="red" size="small">mdi-battery</v-icon>
+                          <strong class="mr-2">Batterie:</strong>
+                          <span>{{ selectedPurchase.product.battery }}%</span>
+                        </div>
+                        <div v-if="selectedPurchase.product?.condition" class="d-flex align-center mb-2">
+                          <v-icon class="mr-2" color="amber" size="small">mdi-check-circle</v-icon>
+                          <strong class="mr-2">État:</strong>
+                          <span>{{ selectedPurchase.product.condition }}</span>
+                        </div>
+                      </v-col>
+                    </v-row>
                   </v-card-text>
                 </v-card>
               </v-col>
               
+              <!-- Calcul du coût total -->
               <v-col cols="12">
                 <v-card color="success" variant="tonal">
                   <v-card-title class="text-subtitle-1">
@@ -549,76 +605,132 @@
                     Calcul du coût total
                   </v-card-title>
                   <v-card-text>
-                    <div class="mb-3">
-                      <div class="d-flex align-center justify-space-between mb-2">
-                        <div class="d-flex align-center">
-                          <v-icon class="mr-2" color="orange" size="small">mdi-currency-cny</v-icon>
-                          <span>Prix d'achat (RMB):</span>
+                    <v-row>
+                      <v-col cols="12" md="6">
+                        <div class="d-flex align-center justify-space-between mb-3">
+                          <div class="d-flex align-center">
+                            <v-icon class="mr-2" color="orange" size="small">mdi-currency-cny</v-icon>
+                            <span>Prix d'achat unitaire (RMB):</span>
+                          </div>
+                          <span class="text-h6 font-weight-bold">
+                            {{ selectedPurchase.priceRMB.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} ¥
+                          </span>
                         </div>
-                        <span class="text-h6 font-weight-bold">
-                          {{ selectedPurchase.priceRMB.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} ¥
-                        </span>
+                        
+                        <div class="d-flex align-center justify-space-between mb-3">
+                          <div class="d-flex align-center">
+                            <v-icon class="mr-2" color="info" size="small">mdi-currency-exchange</v-icon>
+                            <span>Taux de change:</span>
+                          </div>
+                          <span class="text-h6 font-weight-bold">
+                            {{ selectedPurchase.exchangeRate.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                          </span>
+                        </div>
+                        
+                        <div class="d-flex align-center justify-space-between mb-3">
+                          <div class="d-flex align-center">
+                            <v-icon class="mr-2" color="primary" size="small">mdi-numeric</v-icon>
+                            <span>Quantité:</span>
+                          </div>
+                          <span class="text-h6 font-weight-bold">
+                            {{ selectedPurchase.quantity }}
+                          </span>
+                        </div>
+                      </v-col>
+                      
+                      <v-col cols="12" md="6">
+                        <!-- Calculs dérivés -->
+                        <v-card variant="outlined" class="mb-3">
+                          <v-card-text>
+                            <div class="text-caption text-medium-emphasis mb-2">Coût unitaire</div>
+                            <div class="d-flex align-center justify-space-between mb-2">
+                              <span>En RMB:</span>
+                              <span class="font-weight-bold">
+                                {{ selectedPurchase.priceRMB.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} ¥
+                              </span>
+                            </div>
+                            <div class="d-flex align-center justify-space-between">
+                              <span>En MGA:</span>
+                              <span class="font-weight-bold text-success">
+                                {{ formatCurrency(selectedPurchase.priceRMB * selectedPurchase.exchangeRate) }}
+                              </span>
+                            </div>
+                          </v-card-text>
+                        </v-card>
+                        
+                        <v-card variant="outlined">
+                          <v-card-text>
+                            <div class="text-caption text-medium-emphasis mb-2">Coût total</div>
+                            <div class="d-flex align-center justify-space-between">
+                              <span class="text-body-1">Total (MGA):</span>
+                              <span class="text-h5 font-weight-bold text-success">
+                                {{ formatCurrency(selectedPurchase.totalCostMGA) }}
+                              </span>
+                            </div>
+                          </v-card-text>
+                        </v-card>
+                      </v-col>
+                    </v-row>
+                    
+                    <v-divider class="my-3"></v-divider>
+                    
+                    <div class="text-center mb-3">
+                      <div class="text-caption text-medium-emphasis mb-2">Formule de calcul:</div>
+                      <div class="text-body-1 font-weight-medium mb-2">
+                        Prix unitaire (RMB) × Taux de change × Quantité = Coût total (MGA)
                       </div>
-                      
-                      <div class="d-flex align-center justify-space-between mb-2">
-                        <div class="d-flex align-center">
-                          <v-icon class="mr-2" color="info" size="small">mdi-currency-exchange</v-icon>
-                          <span>Taux de change:</span>
-                        </div>
-                        <span class="text-h6 font-weight-bold">
-                          {{ selectedPurchase.exchangeRate.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
-                        </span>
+                      <div class="text-body-2">
+                        {{ selectedPurchase.priceRMB.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} ¥
+                        × {{ selectedPurchase.exchangeRate.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                        × {{ selectedPurchase.quantity }}
+                        = {{ formatCurrency(selectedPurchase.totalCostMGA) }}
                       </div>
-                      
-                      <div class="d-flex align-center justify-space-between mb-2">
-                        <div class="d-flex align-center">
-                          <v-icon class="mr-2" color="primary" size="small">mdi-numeric</v-icon>
-                          <span>Quantité:</span>
-                        </div>
-                        <span class="text-h6 font-weight-bold">
-                          {{ selectedPurchase.quantity }}
-                        </span>
+                    </div>
+                    
+                    <v-divider class="my-3"></v-divider>
+                    
+                    <div class="d-flex align-center justify-space-between">
+                      <div class="d-flex align-center">
+                        <v-icon class="mr-2" color="success" size="large">mdi-cash</v-icon>
+                        <span class="text-h6 font-weight-bold">Coût total estimé:</span>
                       </div>
-                      
-                      <v-divider class="my-3"></v-divider>
-                      
-                      <div class="text-center mb-3">
-                        <div class="text-caption text-medium-emphasis mb-2">Formule de calcul:</div>
-                        <div class="text-body-1 font-weight-medium">
-                          Prix (RMB) × Taux de change × Quantité = Coût total (MGA)
-                        </div>
-                        <div class="text-body-2 mt-2">
-                          {{ selectedPurchase.priceRMB.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} ¥
-                          × {{ selectedPurchase.exchangeRate.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
-                          × {{ selectedPurchase.quantity }}
-                          = {{ formatCurrency(selectedPurchase.totalCostMGA) }}
-                        </div>
-                      </div>
-                      
-                      <v-divider class="my-3"></v-divider>
-                      
-                      <div class="d-flex align-center justify-space-between">
-                        <div class="d-flex align-center">
-                          <v-icon class="mr-2" color="success" size="large">mdi-cash</v-icon>
-                          <span class="text-h6 font-weight-bold">Coût total estimé:</span>
-                        </div>
-                        <span class="text-h4 font-weight-bold text-success">
-                          {{ formatCurrency(selectedPurchase.totalCostMGA) }}
-                        </span>
-                      </div>
+                      <span class="text-h4 font-weight-bold text-success">
+                        {{ formatCurrency(selectedPurchase.totalCostMGA) }}
+                      </span>
                     </div>
                   </v-card-text>
                 </v-card>
               </v-col>
               
+              <!-- Informations de date et métadonnées -->
               <v-col cols="12">
                 <v-card variant="outlined">
+                  <v-card-title class="text-subtitle-1">
+                    <v-icon class="mr-2" color="grey">mdi-calendar-clock</v-icon>
+                    Informations de date
+                  </v-card-title>
                   <v-card-text>
-                    <div class="d-flex align-center mb-2">
-                      <v-icon class="mr-2" color="grey" size="small">mdi-calendar</v-icon>
-                      <strong class="mr-2">Date d'achat:</strong>
-                      <span>{{ formatDate(selectedPurchase.purchaseDate) }}</span>
-                    </div>
+                    <v-row>
+                      <v-col cols="12" md="6">
+                        <div class="d-flex align-center mb-2">
+                          <v-icon class="mr-2" color="info" size="small">mdi-calendar</v-icon>
+                          <strong class="mr-2">Date d'achat:</strong>
+                          <span>{{ formatDate(selectedPurchase.purchaseDate) }}</span>
+                        </div>
+                        <div class="d-flex align-center">
+                          <v-icon class="mr-2" color="grey" size="small">mdi-clock-outline</v-icon>
+                          <strong class="mr-2">Heure d'achat:</strong>
+                          <span>{{ formatDateTime(selectedPurchase.purchaseDate) }}</span>
+                        </div>
+                      </v-col>
+                      <v-col cols="12" md="6">
+                        <div class="text-caption text-medium-emphasis mb-2">Informations techniques</div>
+                        <div class="d-flex align-center mb-1">
+                          <v-icon class="mr-2" color="grey" size="small">mdi-identifier</v-icon>
+                          <span class="text-caption">ID: {{ selectedPurchase.id.substring(0, 8) }}...</span>
+                        </div>
+                      </v-col>
+                    </v-row>
                   </v-card-text>
                 </v-card>
               </v-col>
@@ -885,6 +997,16 @@ const calculateTotalCost = () => {
 
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString('fr-FR')
+}
+
+const formatDateTime = (dateString: string) => {
+  return new Date(dateString).toLocaleString('fr-FR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
 }
 
 const showPurchaseDetails = (purchase: Purchase) => {
