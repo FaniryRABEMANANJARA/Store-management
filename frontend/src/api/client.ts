@@ -232,6 +232,7 @@ export const salesApi = {
     priceMGA: number
     saleDate?: string
   }) => apiClient.post<Sale>('/sales', data),
+  delete: (id: string) => apiClient.delete(`/sales/${id}`),
 }
 
 export const exchangeRatesApi = {

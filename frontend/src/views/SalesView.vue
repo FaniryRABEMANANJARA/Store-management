@@ -36,6 +36,20 @@
               <template v-slot:item.saleDate="{ item }">
                 {{ formatDate(item.saleDate) }}
               </template>
+              <template v-slot:item.actions="{ item }">
+                <v-btn
+                  icon="mdi-cancel"
+                  size="small"
+                  color="error"
+                  variant="text"
+                  @click="cancelSale(item)"
+                >
+                  <v-icon>mdi-cancel</v-icon>
+                  <v-tooltip activator="parent" location="top">
+                    Annuler cette vente
+                  </v-tooltip>
+                </v-btn>
+              </template>
             </v-data-table>
           </v-card-text>
         </v-card>
@@ -137,6 +151,46 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- Dialog de confirmation d'annulation -->
+    <v-dialog v-model="showCancelDialog" max-width="400" persistent>
+      <v-card>
+        <v-card-title class="text-white bg-error pa-4">
+          <v-icon class="mr-2">mdi-alert</v-icon>
+          Confirmer l'annulation
+        </v-card-title>
+        <v-card-text class="pa-4">
+          <div class="text-body-1 mb-2">
+            Êtes-vous sûr de vouloir annuler cette vente ?
+          </div>
+          <div v-if="saleToCancel" class="text-body-2 text-medium-emphasis">
+            <div><strong>Produit:</strong> {{ saleToCancel.product?.name || 'N/A' }}</div>
+            <div><strong>Quantité:</strong> {{ saleToCancel.quantity }}</div>
+            <div><strong>Revenu:</strong> {{ formatCurrency(saleToCancel.totalRevenue) }}</div>
+          </div>
+          <div class="text-caption text-error mt-2">
+            ⚠️ Cette action est irréversible. La vente sera supprimée et exclue des calculs de bénéfice.
+          </div>
+        </v-card-text>
+        <v-card-actions class="pa-4">
+          <v-spacer></v-spacer>
+          <v-btn
+            color="grey-darken-1"
+            variant="outlined"
+            @click="showCancelDialog = false; saleToCancel = null"
+          >
+            Annuler
+          </v-btn>
+          <v-btn
+            color="error"
+            @click="confirmCancelSale"
+            :loading="loading"
+          >
+            Confirmer l'annulation
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -147,6 +201,8 @@ import { salesApi, productsApi, type Sale, type Product } from '@/api/client'
 const sales = ref<Sale[]>([])
 const products = ref<Product[]>([])
 const showDialog = ref(false)
+const showCancelDialog = ref(false)
+const saleToCancel = ref<Sale | null>(null)
 const loading = ref(false)
 const saleForm = ref<any>(null)
 const newSale = ref({
@@ -162,6 +218,7 @@ const headers = [
   { title: 'Prix unitaire (MGA)', key: 'priceMGA' },
   { title: 'Revenu total (MGA)', key: 'totalRevenue' },
   { title: 'Date', key: 'saleDate' },
+  { title: 'Actions', key: 'actions', sortable: false, width: '120px' },
 ]
 
 const loadData = async () => {
@@ -219,6 +276,30 @@ const calculateTotalRevenue = () => {
 
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString('fr-FR')
+}
+
+const cancelSale = (sale: Sale) => {
+  saleToCancel.value = sale
+  showCancelDialog.value = true
+}
+
+const confirmCancelSale = async () => {
+  if (!saleToCancel.value) return
+
+  try {
+    loading.value = true
+    await salesApi.delete(saleToCancel.value.id)
+    showCancelDialog.value = false
+    saleToCancel.value = null
+    await loadData()
+    // Afficher un message de succès (vous pouvez utiliser un snackbar si disponible)
+    alert('Vente annulée avec succès. Les calculs de bénéfice ont été mis à jour.')
+  } catch (error: any) {
+    console.error('Error canceling sale:', error)
+    alert(error.response?.data?.error || 'Erreur lors de l\'annulation de la vente')
+  } finally {
+    loading.value = false
+  }
 }
 
 onMounted(() => {
