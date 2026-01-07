@@ -191,6 +191,24 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- Snackbar pour les notifications -->
+    <v-snackbar
+      v-model="snackbar"
+      :color="snackbarColor"
+      :timeout="4000"
+      location="top"
+    >
+      {{ snackbarText }}
+      <template v-slot:actions>
+        <v-btn
+          variant="text"
+          @click="snackbar = false"
+        >
+          Fermer
+        </v-btn>
+      </template>
+    </v-snackbar>
   </div>
 </template>
 
@@ -205,6 +223,9 @@ const showCancelDialog = ref(false)
 const saleToCancel = ref<Sale | null>(null)
 const loading = ref(false)
 const saleForm = ref<any>(null)
+const snackbar = ref(false)
+const snackbarText = ref('')
+const snackbarColor = ref<'success' | 'error' | 'info' | 'warning'>('success')
 const newSale = ref({
   productId: '',
   quantity: 1,
@@ -238,6 +259,12 @@ const loadData = async () => {
   }
 }
 
+const showSnackbar = (message: string, color: 'success' | 'error' | 'info' | 'warning' = 'success') => {
+  snackbarText.value = message
+  snackbarColor.value = color
+  snackbar.value = true
+}
+
 const createSale = async () => {
   const { valid } = await saleForm.value?.validate()
   if (!valid) return
@@ -252,9 +279,11 @@ const createSale = async () => {
       saleDate: new Date().toISOString().split('T')[0],
     }
     showDialog.value = false
-    loadData()
-  } catch (error) {
+    await loadData()
+    showSnackbar('Vente enregistrée avec succès', 'success')
+  } catch (error: any) {
     console.error('Error creating sale:', error)
+    showSnackbar(error.response?.data?.error || 'Erreur lors de l\'enregistrement de la vente', 'error')
   } finally {
     loading.value = false
   }
@@ -292,11 +321,10 @@ const confirmCancelSale = async () => {
     showCancelDialog.value = false
     saleToCancel.value = null
     await loadData()
-    // Afficher un message de succès (vous pouvez utiliser un snackbar si disponible)
-    alert('Vente annulée avec succès. Les calculs de bénéfice ont été mis à jour.')
+    showSnackbar('Vente annulée avec succès. Les calculs de bénéfice ont été mis à jour.', 'success')
   } catch (error: any) {
     console.error('Error canceling sale:', error)
-    alert(error.response?.data?.error || 'Erreur lors de l\'annulation de la vente')
+    showSnackbar(error.response?.data?.error || 'Erreur lors de l\'annulation de la vente', 'error')
   } finally {
     loading.value = false
   }
