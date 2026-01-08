@@ -1,16 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getPrisma } from '@/lib/prisma'
+import { handleCORS, corsHeaders } from '@/lib/cors'
+import { requireAuth } from '@/lib/middleware'
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic'
+
+// Gérer les requêtes OPTIONS (preflight CORS)
+export async function OPTIONS() {
+  return handleCORS()
+}
 
 // GET /api/products/[id] - Récupérer un produit par ID
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  try {
-    const prisma = getPrisma()
+  return requireAuth(request, async (req, userId, user) => {
+    try {
+      const prisma = getPrisma()
     const product = await prisma.product.findUnique({
       where: { id: params.id },
       include: {
@@ -32,14 +40,15 @@ export async function GET(
       )
     }
 
-    return NextResponse.json(product)
-  } catch (error) {
-    console.error('Error fetching product:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch product' },
-      { status: 500 }
-    )
-  }
+      return NextResponse.json(product, { headers: corsHeaders() })
+    } catch (error) {
+      console.error('Error fetching product:', error)
+      return NextResponse.json(
+        { error: 'Failed to fetch product' },
+        { status: 500, headers: corsHeaders() }
+      )
+    }
+  })
 }
 
 // PUT /api/products/[id] - Mettre à jour un produit
@@ -47,9 +56,10 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  try {
-    const prisma = getPrisma()
-    const body = await request.json()
+  return requireAuth(request, async (req, userId, user) => {
+    try {
+      const prisma = getPrisma()
+      const body = await req.json()
     const { 
       name, 
       description, 
@@ -91,14 +101,15 @@ export async function PUT(
       },
     })
 
-    return NextResponse.json(product)
-  } catch (error) {
-    console.error('Error updating product:', error)
-    return NextResponse.json(
-      { error: 'Failed to update product' },
-      { status: 500 }
-    )
-  }
+      return NextResponse.json(product, { headers: corsHeaders() })
+    } catch (error) {
+      console.error('Error updating product:', error)
+      return NextResponse.json(
+        { error: 'Failed to update product' },
+        { status: 500, headers: corsHeaders() }
+      )
+    }
+  })
 }
 
 // DELETE /api/products/[id] - Supprimer un produit
@@ -106,19 +117,21 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  try {
-    const prisma = getPrisma()
-    await prisma.product.delete({
-      where: { id: params.id },
-    })
+  return requireAuth(request, async (req, userId, user) => {
+    try {
+      const prisma = getPrisma()
+      await prisma.product.delete({
+        where: { id: params.id },
+      })
 
-    return NextResponse.json({ message: 'Product deleted successfully' })
-  } catch (error) {
-    console.error('Error deleting product:', error)
-    return NextResponse.json(
-      { error: 'Failed to delete product' },
-      { status: 500 }
-    )
-  }
+      return NextResponse.json({ message: 'Product deleted successfully' }, { headers: corsHeaders() })
+    } catch (error) {
+      console.error('Error deleting product:', error)
+      return NextResponse.json(
+        { error: 'Failed to delete product' },
+        { status: 500, headers: corsHeaders() }
+      )
+    }
+  })
 }
 

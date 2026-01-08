@@ -11,6 +11,7 @@ import DashboardView from './views/DashboardView.vue'
 import CategoriesView from './views/CategoriesView.vue'
 import BudgetView from './views/BudgetView.vue'
 import OrdersView from './views/OrdersView.vue'
+import UsersView from './views/UsersView.vue'
 import LoginView from './views/LoginView.vue'
 import RegisterView from './views/RegisterView.vue'
 import { useAuth } from './composables/useAuth'
@@ -64,6 +65,11 @@ const routes = [
     component: SalesView,
     meta: { requiresAuth: true }
   },
+  { 
+    path: '/users', 
+    component: UsersView,
+    meta: { requiresAuth: true, requiresRole: 'admin' }
+  },
 ]
 
 const router = createRouter({
@@ -73,16 +79,31 @@ const router = createRouter({
 
 // Navigation guard pour protéger les routes
 router.beforeEach(async (to, from, next) => {
-  const { isAuthenticated, fetchUser } = useAuth()
+  const { isAuthenticated, fetchUser, user } = useAuth()
   
   // Si on a un token, récupérer les infos utilisateur
-  if (localStorage.getItem('token') && !isAuthenticated.value) {
-    await fetchUser()
+  if (localStorage.getItem('token') || sessionStorage.getItem('token')) {
+    if (!isAuthenticated.value) {
+      await fetchUser()
+    }
   }
 
   // Si la route nécessite une authentification
   if (to.meta.requiresAuth) {
     if (isAuthenticated.value) {
+      // Vérifier si la route nécessite un rôle spécifique
+      if (to.meta.requiresRole) {
+        const userRole = user.value?.role || 'user'
+        const requiredRoles = Array.isArray(to.meta.requiresRole) 
+          ? to.meta.requiresRole 
+          : [to.meta.requiresRole]
+        
+        if (!requiredRoles.includes(userRole)) {
+          // Rediriger vers une page d'accès refusé ou le dashboard
+          next('/')
+          return
+        }
+      }
       next()
     } else {
       next('/login')

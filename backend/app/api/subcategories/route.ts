@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getPrisma } from '@/lib/prisma'
 import { handleCORS, corsHeaders } from '@/lib/cors'
+import { requireAuth, requireAdmin } from '@/lib/middleware'
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic'
@@ -12,9 +13,10 @@ export async function OPTIONS() {
 
 // GET /api/subcategories - Récupérer toutes les sous-catégories
 export async function GET(request: NextRequest) {
-  try {
-    const prisma = getPrisma()
-    const { searchParams } = new URL(request.url)
+  return requireAuth(request, async (req, userId, user) => {
+    try {
+      const prisma = getPrisma()
+      const { searchParams } = new URL(req.url)
     const categoryId = searchParams.get('categoryId')
 
     const where = categoryId ? { categoryId } : {}
@@ -31,24 +33,26 @@ export async function GET(request: NextRequest) {
         name: 'asc',
       },
     })
-    return NextResponse.json(subCategories, { headers: corsHeaders() })
-  } catch (error: any) {
-    console.error('Error fetching subcategories:', error)
-    return NextResponse.json(
-      { 
-        error: 'Failed to fetch subcategories',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
-      },
-      { status: 500, headers: corsHeaders() }
-    )
-  }
+      return NextResponse.json(subCategories, { headers: corsHeaders() })
+    } catch (error: any) {
+      console.error('Error fetching subcategories:', error)
+      return NextResponse.json(
+        { 
+          error: 'Failed to fetch subcategories',
+          details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        },
+        { status: 500, headers: corsHeaders() }
+      )
+    }
+  })
 }
 
-// POST /api/subcategories - Créer une nouvelle sous-catégorie
+// POST /api/subcategories - Créer une nouvelle sous-catégorie (Admin seulement)
 export async function POST(request: NextRequest) {
-  try {
-    const prisma = getPrisma()
-    const body = await request.json()
+  return requireAdmin(request, async (req, userId, user) => {
+    try {
+      const prisma = getPrisma()
+      const body = await req.json()
     const { name, description, categoryId } = body
 
     if (!name || !categoryId) {
@@ -69,22 +73,23 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    return NextResponse.json(subCategory, { status: 201, headers: corsHeaders() })
-  } catch (error: any) {
-    console.error('Error creating subcategory:', error)
-    
-    // Gérer les erreurs de contrainte unique
-    if (error.code === 'P2002') {
+      return NextResponse.json(subCategory, { status: 201, headers: corsHeaders() })
+    } catch (error: any) {
+      console.error('Error creating subcategory:', error)
+      
+      // Gérer les erreurs de contrainte unique
+      if (error.code === 'P2002') {
+        return NextResponse.json(
+          { error: 'Subcategory with this name already exists in this category' },
+          { status: 400, headers: corsHeaders() }
+        )
+      }
+
       return NextResponse.json(
-        { error: 'Subcategory with this name already exists in this category' },
-        { status: 400, headers: corsHeaders() }
+        { error: 'Failed to create subcategory' },
+        { status: 500, headers: corsHeaders() }
       )
     }
-
-    return NextResponse.json(
-      { error: 'Failed to create subcategory' },
-      { status: 500, headers: corsHeaders() }
-    )
-  }
+  })
 }
 

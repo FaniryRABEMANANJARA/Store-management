@@ -41,7 +41,7 @@ echo "   (Utilisation d'une connexion directe pour éviter 'too many clients')"
 
 # Exécuter les migrations avec gestion d'erreur améliorée
 if npx prisma migrate deploy; then
-  echo "✅ Migrations appliquées avec succès!"
+echo "✅ Migrations appliquées avec succès!"
 else
   EXIT_CODE=$?
   if [ $EXIT_CODE -ne 0 ]; then

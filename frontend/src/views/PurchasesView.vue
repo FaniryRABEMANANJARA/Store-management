@@ -23,13 +23,97 @@
     <v-row>
       <v-col cols="12">
         <v-card>
-          <v-card-title>Historique des Achats</v-card-title>
+          <v-card-title class="d-flex flex-column flex-sm-row gap-3">
+            <span>Historique des Achats</span>
+            <v-spacer></v-spacer>
+            <v-btn
+              v-if="hasActiveFilters"
+              icon="mdi-filter-off"
+              size="small"
+              variant="text"
+              color="error"
+              @click="resetFilters"
+              title="Réinitialiser les filtres"
+            ></v-btn>
+          </v-card-title>
           <v-card-text>
+            <!-- Barre de recherche et filtres -->
+            <v-row class="mb-4">
+              <v-col cols="12" md="3">
+                <v-text-field
+                  v-model="filters.search"
+                  label="Rechercher"
+                  prepend-inner-icon="mdi-magnify"
+                  variant="outlined"
+                  density="compact"
+                  clearable
+                  hide-details
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" md="3">
+                <v-select
+                  v-model="filters.categoryId"
+                  :items="productCategories"
+                  item-title="name"
+                  item-value="id"
+                  label="Produit"
+                  prepend-inner-icon="mdi-package-variant"
+                  variant="outlined"
+                  density="compact"
+                  clearable
+                  hide-details
+                ></v-select>
+              </v-col>
+              <v-col cols="12" md="2">
+                <v-text-field
+                  v-model="filters.dateFrom"
+                  label="Date début"
+                  type="date"
+                  prepend-inner-icon="mdi-calendar-start"
+                  variant="outlined"
+                  density="compact"
+                  clearable
+                  hide-details
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" md="2">
+                <v-text-field
+                  v-model="filters.dateTo"
+                  label="Date fin"
+                  type="date"
+                  prepend-inner-icon="mdi-calendar-end"
+                  variant="outlined"
+                  density="compact"
+                  clearable
+                  hide-details
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" md="2">
+                <v-text-field
+                  v-model.number="filters.priceMin"
+                  label="Coût min (MGA)"
+                  type="number"
+                  prepend-inner-icon="mdi-currency-usd"
+                  variant="outlined"
+                  density="compact"
+                  clearable
+                  hide-details
+                ></v-text-field>
+              </v-col>
+            </v-row>
             <v-data-table
               :headers="headers"
               :items="purchases"
               :loading="loading"
+              :items-per-page="pagination.limit.value"
+              :page="pagination.page.value"
+              :server-items-length="pagination.total.value"
+              @update:page="(page: number) => pagination.goToPage(page)"
+              @update:items-per-page="(limit: number) => pagination.setLimit(limit)"
               item-key="id"
+              class="elevation-0"
+              :height="600"
+              virtual
             >
               <template v-slot:item.product="{ item }">
                 {{ item.product?.name || 'N/A' }}
@@ -854,7 +938,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import {
   purchasesApi,
   ordersApi,
@@ -864,6 +948,9 @@ import {
   type Product,
   type ExchangeRate,
 } from '@/api/client'
+import { useTableFilters } from '@/composables/useTableFilters'
+import { usePagination } from '@/composables/usePagination'
+import { clientCache } from '@/composables/useCache'
 
 const purchases = ref<Purchase[]>([])
 const products = ref<Product[]>([])
@@ -907,17 +994,83 @@ const headers = [
   { title: 'Actions', key: 'actions', sortable: false, width: '100px' },
 ]
 
+// Système de pagination
+const pagination = usePagination(10, 'purchaseDate', 'desc')
+
+// Système de filtres (pour la recherche locale uniquement maintenant)
+const { filters, resetFilters } = useTableFilters<Purchase>(
+  purchases,
+  { storageKey: 'purchases' }
+)
+
+// Catégories uniques des produits pour le filtre
+const productCategories = computed(() => {
+  const categoryMap = new Map()
+  products.value.forEach(product => {
+    if (product.category && !categoryMap.has(product.category.id)) {
+      categoryMap.set(product.category.id, product.category)
+    }
+  })
+  return Array.from(categoryMap.values())
+})
+
+// Vérifier s'il y a des filtres actifs
+const hasActiveFilters = computed(() => {
+  return !!(
+    filters.value.search ||
+    filters.value.categoryId ||
+    filters.value.dateFrom ||
+    filters.value.dateTo ||
+    filters.value.priceMin !== undefined
+  )
+})
+
 const loadData = async () => {
+  pagination.loading.value = true
   loading.value = true
   try {
+    // Générer une clé de cache
+    const cacheKey = clientCache.generateKey('purchases', pagination.paginationParams.value)
+    
+    // Vérifier le cache
+    const cached = clientCache.get<any>(cacheKey)
+    if (cached) {
+      purchases.value = cached.data
+      pagination.updateFromResult(cached)
+      // Charger les produits et taux de change séparément
+      if (products.value.length === 0) {
+        const productsRes = await productsApi.getAll()
+        products.value = productsRes.data.data || productsRes.data
+      }
+      if (!activeExchangeRate.value) {
+        const exchangeRes = await exchangeRatesApi.getActive()
+        activeExchangeRate.value = exchangeRes.data
+      }
+      if (activeExchangeRate.value) {
+        newPurchase.value.exchangeRate = activeExchangeRate.value.rate
+        newOrder.value.exchangeRate = activeExchangeRate.value.rate
+      }
+      return
+    }
+    
     const [purchasesRes, productsRes, exchangeRes] = await Promise.all([
-      purchasesApi.getAll(),
+      purchasesApi.getAll(pagination.paginationParams.value),
       productsApi.getAll(),
       exchangeRatesApi.getActive(),
     ])
 
-    purchases.value = purchasesRes.data
-    products.value = productsRes.data
+    if (purchasesRes.data.pagination) {
+      // Format paginé
+      purchases.value = purchasesRes.data.data
+      pagination.updateFromResult(purchasesRes.data)
+      // Mettre en cache
+      clientCache.set(cacheKey, purchasesRes.data, 60 * 1000) // 1 minute
+    } else {
+      // Format non paginé (fallback)
+      purchases.value = purchasesRes.data as any
+    }
+    
+    products.value = productsRes.data.data || productsRes.data
     activeExchangeRate.value = exchangeRes.data
 
     if (activeExchangeRate.value) {
@@ -928,8 +1081,17 @@ const loadData = async () => {
     console.error('Error loading data:', error)
   } finally {
     loading.value = false
+    pagination.loading.value = false
   }
 }
+
+// Recharger quand la pagination change
+watch(
+  () => [pagination.page.value, pagination.limit.value, pagination.sortBy.value, pagination.sortOrder.value],
+  () => {
+    loadData()
+  }
+)
 
 const createOrder = async () => {
   const { valid } = await orderForm.value?.validate()
@@ -1049,6 +1211,8 @@ const calculateOrderTotalCost = () => {
 }
 
 const createPurchase = async () => {
+  // Invalider le cache
+  clientCache.deleteByPrefix('purchases')
   const { valid } = await purchaseForm.value?.validate()
   if (!valid) return
 

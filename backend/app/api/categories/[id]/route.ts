@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getPrisma } from '@/lib/prisma'
 import { handleCORS, corsHeaders } from '@/lib/cors'
+import { requireAuth, requireAdmin } from '@/lib/middleware'
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic'
@@ -15,8 +16,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  try {
-    const prisma = getPrisma()
+  return requireAuth(request, async (req, userId, user) => {
+    try {
+      const prisma = getPrisma()
     const category = await prisma.category.findUnique({
       where: { id: params.id },
       include: {
@@ -36,27 +38,29 @@ export async function GET(
       )
     }
 
-    return NextResponse.json(category, { headers: corsHeaders() })
-  } catch (error: any) {
-    console.error('Error fetching category:', error)
-    return NextResponse.json(
-      { 
-        error: 'Failed to fetch category',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
-      },
-      { status: 500, headers: corsHeaders() }
-    )
-  }
+      return NextResponse.json(category, { headers: corsHeaders() })
+    } catch (error: any) {
+      console.error('Error fetching category:', error)
+      return NextResponse.json(
+        { 
+          error: 'Failed to fetch category',
+          details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        },
+        { status: 500, headers: corsHeaders() }
+      )
+    }
+  })
 }
 
-// PUT /api/categories/[id] - Mettre à jour une catégorie
+// PUT /api/categories/[id] - Mettre à jour une catégorie (Admin seulement)
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  try {
-    const prisma = getPrisma()
-    const body = await request.json()
+  return requireAdmin(request, async (req, userId, user) => {
+    try {
+      const prisma = getPrisma()
+      const body = await req.json()
     const { name, description, fieldConfig } = body
 
     if (!name) {
@@ -83,44 +87,46 @@ export async function PUT(
       },
     })
 
-    return NextResponse.json(category, { headers: corsHeaders() })
-  } catch (error: any) {
-    console.error('Error updating category:', error)
-    
-    // Gérer les erreurs de contrainte unique
-    if (error.code === 'P2002') {
+      return NextResponse.json(category, { headers: corsHeaders() })
+    } catch (error: any) {
+      console.error('Error updating category:', error)
+      
+      // Gérer les erreurs de contrainte unique
+      if (error.code === 'P2002') {
+        return NextResponse.json(
+          { error: 'Category with this name already exists' },
+          { status: 400, headers: corsHeaders() }
+        )
+      }
+
+      // Gérer les erreurs de catégorie non trouvée
+      if (error.code === 'P2025') {
+        return NextResponse.json(
+          { error: 'Category not found' },
+          { status: 404, headers: corsHeaders() }
+        )
+      }
+
       return NextResponse.json(
-        { error: 'Category with this name already exists' },
-        { status: 400, headers: corsHeaders() }
+        { 
+          error: 'Failed to update category',
+          details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+          code: error.code
+        },
+        { status: 500, headers: corsHeaders() }
       )
     }
-
-    // Gérer les erreurs de catégorie non trouvée
-    if (error.code === 'P2025') {
-      return NextResponse.json(
-        { error: 'Category not found' },
-        { status: 404, headers: corsHeaders() }
-      )
-    }
-
-    return NextResponse.json(
-      { 
-        error: 'Failed to update category',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined,
-        code: error.code
-      },
-      { status: 500, headers: corsHeaders() }
-    )
-  }
+  })
 }
 
-// DELETE /api/categories/[id] - Supprimer une catégorie
+// DELETE /api/categories/[id] - Supprimer une catégorie (Admin seulement)
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  try {
-    const prisma = getPrisma()
+  return requireAdmin(request, async (req, userId, user) => {
+    try {
+      const prisma = getPrisma()
     
     // Vérifier si la catégorie existe et a des produits
     const category = await prisma.category.findUnique({
@@ -154,37 +160,38 @@ export async function DELETE(
       where: { id: params.id },
     })
 
-    return NextResponse.json(
-      { message: 'Category deleted successfully' },
-      { headers: corsHeaders() }
-    )
-  } catch (error: any) {
-    console.error('Error deleting category:', error)
-    
-    // Gérer les erreurs de contrainte (produits associés)
-    if (error.code === 'P2003') {
       return NextResponse.json(
-        { error: 'Cannot delete category with associated products' },
-        { status: 400, headers: corsHeaders() }
+        { message: 'Category deleted successfully' },
+        { headers: corsHeaders() }
+      )
+    } catch (error: any) {
+      console.error('Error deleting category:', error)
+      
+      // Gérer les erreurs de contrainte (produits associés)
+      if (error.code === 'P2003') {
+        return NextResponse.json(
+          { error: 'Cannot delete category with associated products' },
+          { status: 400, headers: corsHeaders() }
+        )
+      }
+
+      // Gérer les erreurs de catégorie non trouvée
+      if (error.code === 'P2025') {
+        return NextResponse.json(
+          { error: 'Category not found' },
+          { status: 404, headers: corsHeaders() }
+        )
+      }
+
+      return NextResponse.json(
+        { 
+          error: 'Failed to delete category',
+          details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+          code: error.code
+        },
+        { status: 500, headers: corsHeaders() }
       )
     }
-
-    // Gérer les erreurs de catégorie non trouvée
-    if (error.code === 'P2025') {
-      return NextResponse.json(
-        { error: 'Category not found' },
-        { status: 404, headers: corsHeaders() }
-      )
-    }
-
-    return NextResponse.json(
-      { 
-        error: 'Failed to delete category',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined,
-        code: error.code
-      },
-      { status: 500, headers: corsHeaders() }
-    )
-  }
+  })
 }
 

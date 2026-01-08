@@ -119,9 +119,24 @@ export function useAuth() {
     }
   }
 
+  const isAdmin = computed(() => user.value?.role === 'admin')
+  const isUser = computed(() => user.value?.role === 'user')
+  
+  const hasRole = (role: string) => {
+    return user.value?.role === role
+  }
+  
+  const hasAnyRole = (roles: string[]) => {
+    return user.value ? roles.includes(user.value.role) : false
+  }
+
   return {
     user: computed(() => user.value),
     isAuthenticated,
+    isAdmin,
+    isUser,
+    hasRole,
+    hasAnyRole,
     login,
     register,
     logout,

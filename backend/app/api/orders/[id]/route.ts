@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getPrisma } from '@/lib/prisma'
 import { handleCORS, corsHeaders } from '@/lib/cors'
+import { requireAuth } from '@/lib/middleware'
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic'
@@ -15,8 +16,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  try {
-    const prisma = getPrisma()
+  return requireAuth(request, async (req, userId, user) => {
+    try {
+      const prisma = getPrisma()
     
     if (!prisma.order) {
       return NextResponse.json(
@@ -48,19 +50,20 @@ export async function GET(
       )
     }
 
-    return NextResponse.json(order, {
-      headers: corsHeaders(),
-    })
-  } catch (error) {
-    console.error('Error fetching order:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch order' },
-      { 
-        status: 500,
+      return NextResponse.json(order, {
         headers: corsHeaders(),
-      }
-    )
-  }
+      })
+    } catch (error) {
+      console.error('Error fetching order:', error)
+      return NextResponse.json(
+        { error: 'Failed to fetch order' },
+        { 
+          status: 500,
+          headers: corsHeaders(),
+        }
+      )
+    }
+  })
 }
 
 // PUT /api/orders/[id] - Mettre à jour une commande
@@ -68,23 +71,24 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  try {
-    const prisma = getPrisma()
-    
-    if (!prisma.order) {
-      return NextResponse.json(
-        { 
-          error: 'Order model not found in Prisma Client',
-          details: 'Please restart the backend server after running: yarn prisma generate'
-        },
-        { 
-          status: 500,
-          headers: corsHeaders(),
-        }
-      )
-    }
-    
-    const body = await request.json()
+  return requireAuth(request, async (req, userId, user) => {
+    try {
+      const prisma = getPrisma()
+      
+      if (!prisma.order) {
+        return NextResponse.json(
+          { 
+            error: 'Order model not found in Prisma Client',
+            details: 'Please restart the backend server after running: yarn prisma generate'
+          },
+          { 
+            status: 500,
+            headers: corsHeaders(),
+          }
+        )
+      }
+      
+      const body = await req.json()
     const { productId, quantity, priceRMB, exchangeRate, status, orderDate } = body
 
     // Recalculer le coût total si les valeurs changent
@@ -110,19 +114,20 @@ export async function PUT(
       },
     })
 
-    return NextResponse.json(order, {
-      headers: corsHeaders(),
-    })
-  } catch (error) {
-    console.error('Error updating order:', error)
-    return NextResponse.json(
-      { error: 'Failed to update order' },
-      { 
-        status: 500,
+      return NextResponse.json(order, {
         headers: corsHeaders(),
-      }
-    )
-  }
+      })
+    } catch (error) {
+      console.error('Error updating order:', error)
+      return NextResponse.json(
+        { error: 'Failed to update order' },
+        { 
+          status: 500,
+          headers: corsHeaders(),
+        }
+      )
+    }
+  })
 }
 
 // DELETE /api/orders/[id] - Supprimer une commande
@@ -130,8 +135,9 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  try {
-    const prisma = getPrisma()
+  return requireAuth(request, async (req, userId, user) => {
+    try {
+      const prisma = getPrisma()
     
     if (!prisma.order) {
       return NextResponse.json(
@@ -150,18 +156,19 @@ export async function DELETE(
       where: { id: params.id },
     })
 
-    return NextResponse.json({ success: true }, {
-      headers: corsHeaders(),
-    })
-  } catch (error) {
-    console.error('Error deleting order:', error)
-    return NextResponse.json(
-      { error: 'Failed to delete order' },
-      { 
-        status: 500,
+      return NextResponse.json({ success: true }, {
         headers: corsHeaders(),
-      }
-    )
-  }
+      })
+    } catch (error) {
+      console.error('Error deleting order:', error)
+      return NextResponse.json(
+        { error: 'Failed to delete order' },
+        { 
+          status: 500,
+          headers: corsHeaders(),
+        }
+      )
+    }
+  })
 }
 

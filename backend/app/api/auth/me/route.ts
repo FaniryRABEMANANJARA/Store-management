@@ -1,48 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { authenticate } from '@/lib/middleware'
+import { getPrisma } from '@/lib/prisma'
+import { handleCORS, corsHeaders } from '@/lib/cors'
+import { requireAuth, getUserFromDB } from '@/lib/middleware'
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic'
 
+// Gérer les requêtes OPTIONS (preflight CORS)
+export async function OPTIONS() {
+  return handleCORS()
+}
+
 export async function GET(request: NextRequest) {
-  try {
-    const user = authenticate(request)
+  return requireAuth(request, async (req, userId, user) => {
+    try {
+      // Récupérer les informations complètes de l'utilisateur depuis la DB
+      const userData = await getUserFromDB(userId)
 
-    if (!user) {
+      if (!userData) {
+        return NextResponse.json(
+          { error: 'User not found' },
+          { status: 404, headers: corsHeaders() }
+        )
+      }
+
+      return NextResponse.json(userData, { headers: corsHeaders() })
+    } catch (error) {
+      console.error('Error fetching user:', error)
       return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
+        { error: 'Failed to fetch user' },
+        { status: 500, headers: corsHeaders() }
       )
     }
-
-    // Récupérer les informations complètes de l'utilisateur
-    const userData = await prisma.user.findUnique({
-      where: { id: user.userId },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    })
-
-    if (!userData) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      )
-    }
-
-    return NextResponse.json(userData)
-  } catch (error) {
-    console.error('Error fetching user:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch user' },
-      { status: 500 }
-    )
-  }
+  })
 }
 

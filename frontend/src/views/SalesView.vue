@@ -16,13 +16,97 @@
     <v-row>
       <v-col cols="12">
         <v-card>
-          <v-card-title>Historique des Ventes</v-card-title>
+          <v-card-title class="d-flex flex-column flex-sm-row gap-3">
+            <span>Historique des Ventes</span>
+            <v-spacer></v-spacer>
+            <v-btn
+              v-if="hasActiveFilters"
+              icon="mdi-filter-off"
+              size="small"
+              variant="text"
+              color="error"
+              @click="resetFilters"
+              title="Réinitialiser les filtres"
+            ></v-btn>
+          </v-card-title>
           <v-card-text>
+            <!-- Barre de recherche et filtres -->
+            <v-row class="mb-4">
+              <v-col cols="12" md="3">
+                <v-text-field
+                  v-model="filters.search"
+                  label="Rechercher"
+                  prepend-inner-icon="mdi-magnify"
+                  variant="outlined"
+                  density="compact"
+                  clearable
+                  hide-details
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" md="3">
+                <v-select
+                  v-model="filters.categoryId"
+                  :items="productCategories"
+                  item-title="name"
+                  item-value="id"
+                  label="Produit"
+                  prepend-inner-icon="mdi-package-variant"
+                  variant="outlined"
+                  density="compact"
+                  clearable
+                  hide-details
+                ></v-select>
+              </v-col>
+              <v-col cols="12" md="2">
+                <v-text-field
+                  v-model="filters.dateFrom"
+                  label="Date début"
+                  type="date"
+                  prepend-inner-icon="mdi-calendar-start"
+                  variant="outlined"
+                  density="compact"
+                  clearable
+                  hide-details
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" md="2">
+                <v-text-field
+                  v-model="filters.dateTo"
+                  label="Date fin"
+                  type="date"
+                  prepend-inner-icon="mdi-calendar-end"
+                  variant="outlined"
+                  density="compact"
+                  clearable
+                  hide-details
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" md="2">
+                <v-text-field
+                  v-model.number="filters.priceMin"
+                  label="Prix min (MGA)"
+                  type="number"
+                  prepend-inner-icon="mdi-currency-usd"
+                  variant="outlined"
+                  density="compact"
+                  clearable
+                  hide-details
+                ></v-text-field>
+              </v-col>
+            </v-row>
             <v-data-table
               :headers="headers"
               :items="sales"
               :loading="loading"
+              :items-per-page="pagination.limit.value"
+              :page="pagination.page.value"
+              :server-items-length="pagination.total.value"
+              @update:page="(page: number) => pagination.goToPage(page)"
+              @update:items-per-page="(limit: number) => pagination.setLimit(limit)"
               item-key="id"
+              class="elevation-0"
+              :height="600"
+              virtual
             >
               <template v-slot:item.product="{ item }">
                 {{ item.product?.name || 'N/A' }}
@@ -213,8 +297,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { salesApi, productsApi, type Sale, type Product } from '@/api/client'
+import { useTableFilters } from '@/composables/useTableFilters'
+import { usePagination } from '@/composables/usePagination'
+import { clientCache } from '@/composables/useCache'
 
 const sales = ref<Sale[]>([])
 const products = ref<Product[]>([])
@@ -242,22 +329,89 @@ const headers = [
   { title: 'Actions', key: 'actions', sortable: false, width: '120px' },
 ]
 
+// Système de pagination
+const pagination = usePagination(10, 'saleDate', 'desc')
+
+// Système de filtres (pour la recherche locale uniquement maintenant)
+const { filters, resetFilters } = useTableFilters<Sale>(
+  sales,
+  { storageKey: 'sales' }
+)
+
+// Catégories uniques des produits pour le filtre
+const productCategories = computed(() => {
+  const categoryMap = new Map()
+  products.value.forEach(product => {
+    if (product.category && !categoryMap.has(product.category.id)) {
+      categoryMap.set(product.category.id, product.category)
+    }
+  })
+  return Array.from(categoryMap.values())
+})
+
+// Vérifier s'il y a des filtres actifs
+const hasActiveFilters = computed(() => {
+  return !!(
+    filters.value.search ||
+    filters.value.categoryId ||
+    filters.value.dateFrom ||
+    filters.value.dateTo ||
+    filters.value.priceMin !== undefined
+  )
+})
+
 const loadData = async () => {
+  pagination.loading.value = true
   loading.value = true
   try {
+    // Générer une clé de cache
+    const cacheKey = clientCache.generateKey('sales', pagination.paginationParams.value)
+    
+    // Vérifier le cache
+    const cached = clientCache.get<any>(cacheKey)
+    if (cached) {
+      sales.value = cached.data
+      pagination.updateFromResult(cached)
+      // Charger les produits séparément (ils changent moins souvent)
+      if (products.value.length === 0) {
+        const productsRes = await productsApi.getAll()
+        products.value = productsRes.data.data || productsRes.data
+      }
+      return
+    }
+    
     const [salesRes, productsRes] = await Promise.all([
-      salesApi.getAll(),
+      salesApi.getAll(pagination.paginationParams.value),
       productsApi.getAll(),
     ])
 
-    sales.value = salesRes.data
-    products.value = productsRes.data
+    if (salesRes.data.pagination) {
+      // Format paginé
+      sales.value = salesRes.data.data
+      pagination.updateFromResult(salesRes.data)
+      // Mettre en cache
+      clientCache.set(cacheKey, salesRes.data, 60 * 1000) // 1 minute
+    } else {
+      // Format non paginé (fallback)
+      sales.value = salesRes.data as any
+    }
+    
+    products.value = productsRes.data.data || productsRes.data
   } catch (error) {
     console.error('Error loading data:', error)
   } finally {
     loading.value = false
+    pagination.loading.value = false
   }
 }
+
+// Recharger quand la pagination change
+watch(
+  () => [pagination.page.value, pagination.limit.value, pagination.sortBy.value, pagination.sortOrder.value],
+  () => {
+    loadData()
+  }
+)
 
 const showSnackbar = (message: string, color: 'success' | 'error' | 'info' | 'warning' = 'success') => {
   snackbarText.value = message
@@ -266,6 +420,8 @@ const showSnackbar = (message: string, color: 'success' | 'error' | 'info' | 'wa
 }
 
 const createSale = async () => {
+  // Invalider le cache
+  clientCache.deleteByPrefix('sales')
   const { valid } = await saleForm.value?.validate()
   if (!valid) return
 
@@ -313,6 +469,8 @@ const cancelSale = (sale: Sale) => {
 }
 
 const confirmCancelSale = async () => {
+  // Invalider le cache
+  clientCache.deleteByPrefix('sales')
   if (!saleToCancel.value) return
 
   try {

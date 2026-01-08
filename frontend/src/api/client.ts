@@ -174,8 +174,35 @@ export const subCategoriesApi = {
   delete: (id: string) => apiClient.delete(`/subcategories/${id}`),
 }
 
+export interface PaginationParams {
+  page?: number
+  limit?: number
+  sortBy?: string
+  sortOrder?: 'asc' | 'desc'
+}
+
+export interface PaginationResult<T> {
+  data: T[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+    hasNext: boolean
+    hasPrev: boolean
+  }
+}
+
 export const productsApi = {
-  getAll: () => apiClient.get<Product[]>('/products'),
+  getAll: (params?: PaginationParams) => {
+    const queryParams = new URLSearchParams()
+    if (params?.page) queryParams.append('page', params.page.toString())
+    if (params?.limit) queryParams.append('limit', params.limit.toString())
+    if (params?.sortBy) queryParams.append('sortBy', params.sortBy)
+    if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder)
+    const query = queryParams.toString()
+    return apiClient.get<PaginationResult<Product>>(`/products${query ? `?${query}` : ''}`)
+  },
   getById: (id: string) => apiClient.get<Product>(`/products/${id}`),
   create: (data: {
     name: string
@@ -214,7 +241,15 @@ export const productsApi = {
 }
 
 export const purchasesApi = {
-  getAll: () => apiClient.get<Purchase[]>('/purchases'),
+  getAll: (params?: PaginationParams) => {
+    const queryParams = new URLSearchParams()
+    if (params?.page) queryParams.append('page', params.page.toString())
+    if (params?.limit) queryParams.append('limit', params.limit.toString())
+    if (params?.sortBy) queryParams.append('sortBy', params.sortBy)
+    if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder)
+    const query = queryParams.toString()
+    return apiClient.get<PaginationResult<Purchase>>(`/purchases${query ? `?${query}` : ''}`)
+  },
   create: (data: {
     productId: string
     quantity: number
@@ -225,7 +260,15 @@ export const purchasesApi = {
 }
 
 export const salesApi = {
-  getAll: () => apiClient.get<Sale[]>('/sales'),
+  getAll: (params?: PaginationParams) => {
+    const queryParams = new URLSearchParams()
+    if (params?.page) queryParams.append('page', params.page.toString())
+    if (params?.limit) queryParams.append('limit', params.limit.toString())
+    if (params?.sortBy) queryParams.append('sortBy', params.sortBy)
+    if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder)
+    const query = queryParams.toString()
+    return apiClient.get<PaginationResult<Sale>>(`/sales${query ? `?${query}` : ''}`)
+  },
   create: (data: {
     productId: string
     quantity: number
@@ -256,3 +299,29 @@ export const ordersApi = {
   delete: (id: string) => apiClient.delete(`/orders/${id}`),
 }
 
+export interface User {
+  id: string
+  email: string
+  name: string
+  role: string
+  createdAt: string
+  updatedAt: string
+}
+
+export const usersApi = {
+  getAll: () => apiClient.get<User[]>('/users'),
+  getById: (id: string) => apiClient.get<User>(`/users/${id}`),
+  create: (data: {
+    email: string
+    name: string
+    password: string
+    role?: string
+  }) => apiClient.post<User>('/users', data),
+  update: (id: string, data: {
+    email?: string
+    name?: string
+    password?: string
+    role?: string
+  }) => apiClient.put<User>(`/users/${id}`, data),
+  delete: (id: string) => apiClient.delete(`/users/${id}`),
+}

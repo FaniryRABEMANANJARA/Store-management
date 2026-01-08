@@ -46,6 +46,13 @@
             title="Ventes"
             to="/sales"
           ></v-list-item>
+          <v-divider v-if="isAdmin" class="my-2"></v-divider>
+          <v-list-item
+            v-if="isAdmin"
+            prepend-icon="mdi-account-group"
+            title="Utilisateurs"
+            to="/users"
+          ></v-list-item>
         </v-list>
       </v-navigation-drawer>
 
@@ -117,7 +124,7 @@ import { Analytics } from '@vercel/analytics/vue'
 import { useAuth } from './composables/useAuth'
 
 const drawer = ref(true)
-const { isAuthenticated, user, logout, fetchUser } = useAuth()
+const { isAuthenticated, user, logout, fetchUser, isAdmin } = useAuth()
 
 onMounted(async () => {
   // Vérifier l'authentification au chargement

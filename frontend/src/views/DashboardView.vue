@@ -147,9 +147,10 @@ const loadData = async () => {
       exchangeRatesApi.getActive().catch(() => ({ data: null })), // Gérer le cas où il n'y a pas de taux actif
     ])
 
-    products.value = productsRes.data
-    purchases.value = purchasesRes.data
-    sales.value = salesRes.data
+    // Extract data array from PaginationResult (API always returns paginated results)
+    products.value = productsRes.data.data
+    purchases.value = purchasesRes.data.data
+    sales.value = salesRes.data.data
     activeExchangeRate.value = exchangeRes.data || null
 
     const profitPromises = products.value.map((product) =>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getPrisma } from '@/lib/prisma'
 import { handleCORS, corsHeaders } from '@/lib/cors'
+import { requireAuth } from '@/lib/middleware'
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic'
@@ -11,9 +12,10 @@ export async function OPTIONS() {
 }
 
 // GET /api/orders - Récupérer toutes les commandes
-export async function GET() {
-  try {
-    const prisma = getPrisma()
+export async function GET(request: NextRequest) {
+  return requireAuth(request, async (req, userId, user) => {
+    try {
+      const prisma = getPrisma()
     
     // Vérifier que le modèle Order existe dans Prisma Client
     if (!prisma.order) {
@@ -38,25 +40,27 @@ export async function GET() {
         orderDate: 'desc',
       },
     })
-    return NextResponse.json(orders, {
-      headers: corsHeaders(),
-    })
-  } catch (error) {
-    console.error('Error fetching orders:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch orders' },
-      { 
-        status: 500,
+      return NextResponse.json(orders, {
         headers: corsHeaders(),
-      }
-    )
-  }
+      })
+    } catch (error) {
+      console.error('Error fetching orders:', error)
+      return NextResponse.json(
+        { error: 'Failed to fetch orders' },
+        { 
+          status: 500,
+          headers: corsHeaders(),
+        }
+      )
+    }
+  })
 }
 
 // POST /api/orders - Créer une nouvelle commande
 export async function POST(request: NextRequest) {
-  try {
-    const prisma = getPrisma()
+  return requireAuth(request, async (req, userId, user) => {
+    try {
+      const prisma = getPrisma()
     
     // Vérifier que le modèle Order existe dans Prisma Client
     if (!prisma.order) {
@@ -73,7 +77,7 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    const body = await request.json()
+      const body = await req.json()
     const { productId, quantity, priceRMB, exchangeRate, orderDate } = body
 
     if (!productId || !quantity || !priceRMB || !exchangeRate) {
@@ -104,22 +108,23 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    return NextResponse.json(order, { 
-      status: 201,
-      headers: corsHeaders(),
-    })
-  } catch (error: any) {
-    console.error('Error creating order:', error)
-    return NextResponse.json(
-      { 
-        error: 'Failed to create order',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
-      },
-      { 
-        status: 500,
+      return NextResponse.json(order, { 
+        status: 201,
         headers: corsHeaders(),
-      }
-    )
-  }
+      })
+    } catch (error: any) {
+      console.error('Error creating order:', error)
+      return NextResponse.json(
+        { 
+          error: 'Failed to create order',
+          details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        },
+        { 
+          status: 500,
+          headers: corsHeaders(),
+        }
+      )
+    }
+  })
 }
 

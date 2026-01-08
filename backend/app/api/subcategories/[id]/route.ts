@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getPrisma } from '@/lib/prisma'
 import { handleCORS, corsHeaders } from '@/lib/cors'
+import { requireAuth, requireAdmin } from '@/lib/middleware'
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic'
@@ -15,8 +16,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  try {
-    const prisma = getPrisma()
+  return requireAuth(request, async (req, userId, user) => {
+    try {
+      const prisma = getPrisma()
     const subCategory = await prisma.subCategory.findUnique({
       where: { id: params.id },
       include: {
@@ -34,27 +36,29 @@ export async function GET(
       )
     }
 
-    return NextResponse.json(subCategory, { headers: corsHeaders() })
-  } catch (error: any) {
-    console.error('Error fetching subcategory:', error)
-    return NextResponse.json(
-      { 
-        error: 'Failed to fetch subcategory',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
-      },
-      { status: 500, headers: corsHeaders() }
-    )
-  }
+      return NextResponse.json(subCategory, { headers: corsHeaders() })
+    } catch (error: any) {
+      console.error('Error fetching subcategory:', error)
+      return NextResponse.json(
+        { 
+          error: 'Failed to fetch subcategory',
+          details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        },
+        { status: 500, headers: corsHeaders() }
+      )
+    }
+  })
 }
 
-// PUT /api/subcategories/[id] - Mettre à jour une sous-catégorie
+// PUT /api/subcategories/[id] - Mettre à jour une sous-catégorie (Admin seulement)
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  try {
-    const prisma = getPrisma()
-    const body = await request.json()
+  return requireAdmin(request, async (req, userId, user) => {
+    try {
+      const prisma = getPrisma()
+      const body = await req.json()
     const { name, description, categoryId } = body
 
     if (!name) {
@@ -79,44 +83,46 @@ export async function PUT(
       },
     })
 
-    return NextResponse.json(subCategory, { headers: corsHeaders() })
-  } catch (error: any) {
-    console.error('Error updating subcategory:', error)
-    
-    // Gérer les erreurs de contrainte unique
-    if (error.code === 'P2002') {
+      return NextResponse.json(subCategory, { headers: corsHeaders() })
+    } catch (error: any) {
+      console.error('Error updating subcategory:', error)
+      
+      // Gérer les erreurs de contrainte unique
+      if (error.code === 'P2002') {
+        return NextResponse.json(
+          { error: 'Subcategory with this name already exists in this category' },
+          { status: 400, headers: corsHeaders() }
+        )
+      }
+
+      // Gérer les erreurs de sous-catégorie non trouvée
+      if (error.code === 'P2025') {
+        return NextResponse.json(
+          { error: 'SubCategory not found' },
+          { status: 404, headers: corsHeaders() }
+        )
+      }
+
       return NextResponse.json(
-        { error: 'Subcategory with this name already exists in this category' },
-        { status: 400, headers: corsHeaders() }
+        { 
+          error: 'Failed to update subcategory',
+          details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+          code: error.code
+        },
+        { status: 500, headers: corsHeaders() }
       )
     }
-
-    // Gérer les erreurs de sous-catégorie non trouvée
-    if (error.code === 'P2025') {
-      return NextResponse.json(
-        { error: 'SubCategory not found' },
-        { status: 404, headers: corsHeaders() }
-      )
-    }
-
-    return NextResponse.json(
-      { 
-        error: 'Failed to update subcategory',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined,
-        code: error.code
-      },
-      { status: 500, headers: corsHeaders() }
-    )
-  }
+  })
 }
 
-// DELETE /api/subcategories/[id] - Supprimer une sous-catégorie
+// DELETE /api/subcategories/[id] - Supprimer une sous-catégorie (Admin seulement)
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  try {
-    const prisma = getPrisma()
+  return requireAdmin(request, async (req, userId, user) => {
+    try {
+      const prisma = getPrisma()
     
     // Vérifier si la sous-catégorie existe et a des produits
     const subCategory = await prisma.subCategory.findUnique({
@@ -140,29 +146,30 @@ export async function DELETE(
       where: { id: params.id },
     })
 
-    return NextResponse.json(
-      { message: 'SubCategory deleted successfully' },
-      { headers: corsHeaders() }
-    )
-  } catch (error: any) {
-    console.error('Error deleting subcategory:', error)
-    
-    // Gérer les erreurs de sous-catégorie non trouvée
-    if (error.code === 'P2025') {
       return NextResponse.json(
-        { error: 'SubCategory not found' },
-        { status: 404, headers: corsHeaders() }
+        { message: 'SubCategory deleted successfully' },
+        { headers: corsHeaders() }
+      )
+    } catch (error: any) {
+      console.error('Error deleting subcategory:', error)
+      
+      // Gérer les erreurs de sous-catégorie non trouvée
+      if (error.code === 'P2025') {
+        return NextResponse.json(
+          { error: 'SubCategory not found' },
+          { status: 404, headers: corsHeaders() }
+        )
+      }
+
+      return NextResponse.json(
+        { 
+          error: 'Failed to delete subcategory',
+          details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+          code: error.code
+        },
+        { status: 500, headers: corsHeaders() }
       )
     }
-
-    return NextResponse.json(
-      { 
-        error: 'Failed to delete subcategory',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined,
-        code: error.code
-      },
-      { status: 500, headers: corsHeaders() }
-    )
-  }
+  })
 }
 

@@ -387,9 +387,10 @@ const loadData = async () => {
       exchangeRatesApi.getActive(),
     ])
 
-    sales.value = salesRes.data
-    purchases.value = purchasesRes.data
-    products.value = productsRes.data
+    // Extract data array from PaginationResult (API always returns paginated results)
+    sales.value = salesRes.data.data
+    purchases.value = purchasesRes.data.data
+    products.value = productsRes.data.data
     activeExchangeRate.value = exchangeRes.data
 
     // Charger les bénéfices par produit

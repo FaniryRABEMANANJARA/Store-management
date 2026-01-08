@@ -16,13 +16,85 @@
     <v-row>
       <v-col cols="12">
         <v-card>
-          <v-card-title>Liste des Produits</v-card-title>
+          <v-card-title class="d-flex flex-column flex-sm-row gap-3">
+            <span>Liste des Produits</span>
+            <v-spacer></v-spacer>
+            <v-btn
+              v-if="hasActiveFilters"
+              icon="mdi-filter-off"
+              size="small"
+              variant="text"
+              color="error"
+              @click="resetFilters"
+              title="Réinitialiser les filtres"
+            ></v-btn>
+          </v-card-title>
           <v-card-text>
+            <!-- Barre de recherche et filtres -->
+            <v-row class="mb-4">
+              <v-col cols="12" md="4">
+                <v-text-field
+                  v-model="filters.search"
+                  label="Rechercher"
+                  prepend-inner-icon="mdi-magnify"
+                  variant="outlined"
+                  density="compact"
+                  clearable
+                  hide-details
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" md="3">
+                <v-select
+                  v-model="filters.categoryId"
+                  :items="categories"
+                  item-title="name"
+                  item-value="id"
+                  label="Catégorie"
+                  prepend-inner-icon="mdi-folder"
+                  variant="outlined"
+                  density="compact"
+                  clearable
+                  hide-details
+                ></v-select>
+              </v-col>
+              <v-col cols="12" md="2">
+                <v-text-field
+                  v-model="filters.dateFrom"
+                  label="Date début"
+                  type="date"
+                  prepend-inner-icon="mdi-calendar-start"
+                  variant="outlined"
+                  density="compact"
+                  clearable
+                  hide-details
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" md="3">
+                <v-text-field
+                  v-model="filters.dateTo"
+                  label="Date fin"
+                  type="date"
+                  prepend-inner-icon="mdi-calendar-end"
+                  variant="outlined"
+                  density="compact"
+                  clearable
+                  hide-details
+                ></v-text-field>
+              </v-col>
+            </v-row>
             <v-data-table
               :headers="headers"
               :items="products"
               :loading="loading"
+              :items-per-page="pagination.limit.value"
+              :page="pagination.page.value"
+              :server-items-length="pagination.total.value"
+              @update:page="(page: number) => pagination.goToPage(page)"
+              @update:items-per-page="(limit: number) => pagination.setLimit(limit)"
               item-key="id"
+              class="elevation-0"
+              :height="600"
+              virtual
             >
               <template v-slot:item.category.name="{ item }">
                 {{ item.category?.name || '-' }}
@@ -714,8 +786,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { productsApi, categoriesApi, subCategoriesApi, type Product, type Category, type SubCategory } from '@/api/client'
+import { useTableFilters } from '@/composables/useTableFilters'
+import { usePagination } from '@/composables/usePagination'
+import { clientCache } from '@/composables/useCache'
 
 const products = ref<Product[]>([])
 const categories = ref<Category[]>([])
@@ -908,17 +983,67 @@ const headers = [
   { title: 'Actions', key: 'actions', sortable: false },
 ]
 
+// Système de pagination
+const pagination = usePagination(10, 'createdAt', 'desc')
+
+// Système de filtres (pour la recherche locale uniquement maintenant)
+const { filters, resetFilters } = useTableFilters<Product>(
+  products,
+  { storageKey: 'products' }
+)
+
+// Vérifier s'il y a des filtres actifs
+const hasActiveFilters = computed(() => {
+  return !!(
+    filters.value.search ||
+    filters.value.categoryId ||
+    filters.value.dateFrom ||
+    filters.value.dateTo
+  )
+})
+
+// Charger les produits avec pagination
 const loadProducts = async () => {
+  pagination.loading.value = true
   loading.value = true
   try {
-    const response = await productsApi.getAll()
-    products.value = response.data
+    // Générer une clé de cache
+    const cacheKey = clientCache.generateKey('products', pagination.paginationParams.value)
+    
+    // Vérifier le cache
+    const cached = clientCache.get<any>(cacheKey)
+    if (cached) {
+      products.value = cached.data
+      pagination.updateFromResult(cached)
+      return
+    }
+    
+    const response = await productsApi.getAll(pagination.paginationParams.value)
+    if (response.data.pagination) {
+      // Format paginé
+      products.value = response.data.data
+      pagination.updateFromResult(response.data)
+      // Mettre en cache (TTL de 2 minutes)
+      clientCache.set(cacheKey, response.data, 2 * 60 * 1000)
+    } else {
+      // Format non paginé (fallback)
+      products.value = response.data as any
+    }
   } catch (error) {
     console.error('Error loading products:', error)
   } finally {
     loading.value = false
+    pagination.loading.value = false
   }
 }
+
+// Recharger quand la pagination change
+watch(
+  () => [pagination.page.value, pagination.limit.value, pagination.sortBy.value, pagination.sortOrder.value],
+  () => {
+    loadProducts()
+  }
+)
 
 const loadCategories = async () => {
   try {
@@ -951,6 +1076,8 @@ const onCategoryChangeEdit = () => {
 }
 
 const createProduct = async () => {
+  // Invalider le cache
+  clientCache.deleteByPrefix('products')
   const { valid } = await createForm.value?.validate()
   if (!valid) return
 
@@ -1038,6 +1165,9 @@ const updateProduct = async () => {
   const { valid } = await editForm.value?.validate()
   if (!valid) return
 
+  // Invalider le cache
+  clientCache.deleteByPrefix('products')
+
   try {
     loading.value = true
     const productData = {
@@ -1072,6 +1202,9 @@ const updateProduct = async () => {
 const deleteProduct = async (id: string) => {
   deleteConfirmMessage.value = 'Êtes-vous sûr de vouloir supprimer ce produit ?'
   deleteConfirmCallback.value = async () => {
+    // Invalider le cache
+    clientCache.deleteByPrefix('products')
+    
     try {
       loading.value = true
       await productsApi.delete(id)

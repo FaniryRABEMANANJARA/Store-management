@@ -1,16 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getPrisma } from '@/lib/prisma'
+import { handleCORS, corsHeaders } from '@/lib/cors'
+import { requireAuth } from '@/lib/middleware'
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic'
+
+// Gérer les requêtes OPTIONS (preflight CORS)
+export async function OPTIONS() {
+  return handleCORS()
+}
 
 // GET /api/products/[id]/profit - Calculer le bénéfice/perte d'un produit
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  try {
-    const prisma = getPrisma()
+  return requireAuth(request, async (req, userId, user) => {
+    try {
+      const prisma = getPrisma()
     const product = await prisma.product.findUnique({
       where: { id: params.id },
       include: {
@@ -52,22 +60,23 @@ export async function GET(
     )
     const stock = totalPurchased - totalSold
 
-    return NextResponse.json({
-      productId: product.id,
-      productName: product.name,
-      totalCost,
-      totalRevenue,
-      profit,
-      totalPurchased,
-      totalSold,
-      stock,
-    })
-  } catch (error) {
-    console.error('Error calculating profit:', error)
-    return NextResponse.json(
-      { error: 'Failed to calculate profit' },
-      { status: 500 }
-    )
-  }
+      return NextResponse.json({
+        productId: product.id,
+        productName: product.name,
+        totalCost,
+        totalRevenue,
+        profit,
+        totalPurchased,
+        totalSold,
+        stock,
+      }, { headers: corsHeaders() })
+    } catch (error) {
+      console.error('Error calculating profit:', error)
+      return NextResponse.json(
+        { error: 'Failed to calculate profit' },
+        { status: 500, headers: corsHeaders() }
+      )
+    }
+  })
 }
 
